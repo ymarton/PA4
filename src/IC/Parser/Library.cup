@@ -1,0 +1,124 @@
+package IC.Parser;
+
+import IC.AST.*;
+import IC.*;
+import java_cup.runtime.*;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Collections;
+
+parser code  {:
+	/** Causes the parsr to print every token it reads.
+	 * This is useful for debugging.
+	 */
+	public boolean printTokens;
+	private String expectedString = "";
+	private String foundString;
+	private int errorLine;
+	private int errorColumn;
+
+	private Lexer lexer;
+
+	public LibParser(Lexer lexer) {
+		super(lexer);
+		this.lexer = lexer;
+	}
+
+	public int getLine() {
+		return lexer.getLineNumber();
+	}
+
+    public int getColumn() {
+    		return lexer.getColumnNumber();
+    	}
+
+	public void syntax_error(Symbol s) {
+    		expected_token_ids();
+    		expected_token_ids();
+    		expected_token_ids();
+    		List<Integer> expectedIds = expected_token_ids();
+    		boolean first = true;
+    		List<String> list = new LinkedList<String>();
+    		for (Integer symbol:expectedIds) {
+    			String str = Helper.map.get(symbol.intValue());
+    			list.add(str);
+    		}
+    		Collections.sort(list);
+    		for (String str:list) {
+    		if (first) {
+    			expectedString += "'" + str + "'";
+    			first = false;
+    		} else
+    			expectedString += " or '" + str + "'";
+    		}
+    		Token tok = (Token) s;
+    		foundString = tok.getValue();
+    		errorLine = tok.getLine();
+    		errorColumn = tok.getColumn();
+    	}
+
+	public void report_fatal_error(String message, Object info) throws SyntaxError	{
+		done_parsing();
+		throw new SyntaxError(errorLine, errorColumn, expectedString, foundString);
+	}
+:}
+
+// This is just for debugging
+scan with {:
+	Token t = lexer.next_token();
+	if (printTokens)
+		System.out.println(t.getLine() + ":" + t.getValue());
+	return t;
+:};
+
+nonterminal ICClass libic;
+nonterminal LibraryMethod libMethod;
+nonterminal Type type, typeOrVoid;
+nonterminal List<Method> libMethodList;
+nonterminal List<Formal> formalList;
+
+terminal String CLASS_ID, ID;
+terminal DELIMITER, CLASS, STATIC, VOID, INT, BOOLEAN, STRING_RESERVED;
+//terminal PLUS, MINUS, MULTIFICATION, DIVISION, MODULO, AND, OR, SMALLER_OR_EQUAL, SMALLER, GREATER_OR_EQUAL, GREATER, EQUAL, NOT_EQUAL, NOT;
+terminal LEFT_CUR_PARENTHESES, RIGHT_CUR_PARENTHESES, LEFT_PARENTHESES, RIGHT_PARENTHESES, LEFT_SQUARE_BRACKETS, RIGHT_SQUARE_BRACKETS, COMMA;
+//terminal LEFT_PARENTHESES, RIGHT_PARENTHESES, LEFT_SQUARE_BRACKETS, RIGHT_SQUARE_BRACKETS, LEFT_CUR_PARENTHESES, RIGHT_CUR_PARENTHESES, DOT, COMMA;
+//terminal UMINUS; //only for precedence issues
+
+libic ::= CLASS CLASS_ID:cid LEFT_CUR_PARENTHESES libMethodList:lml RIGHT_CUR_PARENTHESES
+        {:
+            if (!cid.equals("Library")) {
+                throw new SyntaxError(getLine(), getColumn(), "Library", cid);
+            }
+            RESULT = new ICClass(cidleft, cid, new LinkedList<Field>(), lml);
+        :};
+
+libMethodList ::= libMethod:lm
+                {: List<Method> lml = new LinkedList<Method>(); lml.add(lm); RESULT = lml; :}
+                | libMethodList:lml libMethod:lm
+                {: lml.add(lm); RESULT = lml; :};
+
+libMethod ::= STATIC typeOrVoid:tov ID:id LEFT_PARENTHESES formalList:fl RIGHT_PARENTHESES DELIMITER
+            {: RESULT = new LibraryMethod(tov, id, fl); :};
+
+typeOrVoid ::= VOID:v
+            {: RESULT = new PrimitiveType(getLine() ,DataTypes.VOID); :}
+            | type:t
+            {: RESULT = t; :};
+
+type ::= INT:i
+        {: RESULT = new PrimitiveType(getLine() ,DataTypes.INT); :}
+        | BOOLEAN:bool
+        {: RESULT = new PrimitiveType(getLine() ,DataTypes.BOOLEAN); :}
+        | STRING_RESERVED:str
+        {: RESULT = new PrimitiveType(getLine() ,DataTypes.STRING); :}
+        | type:t LEFT_SQUARE_BRACKETS RIGHT_SQUARE_BRACKETS
+        {: t.incrementDimension(); RESULT = t; :}
+        | CLASS_ID:cid
+		{: RESULT = new UserType(getLine(),cid); :};
+
+formalList ::= type:t ID:id
+			{: List<Formal> fl = new LinkedList<Formal>(); fl.add(new Formal(t, id)); RESULT = fl; :}
+			| formalList:fl COMMA type:t ID:id
+			{: fl.add(new Formal(t, id)); RESULT = fl; :}
+			|
+			{: RESULT = new LinkedList<Formal>(); :};
