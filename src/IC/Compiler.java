@@ -14,6 +14,9 @@ import IC.Semantic.SemanticError;
 import IC.Semantic.TypeChecking;
 import IC.Symbols.SymbolTable;
 import IC.Symbols.SymbolTableBuilder;
+import IC.lir.Instructions.LirLine;
+import IC.lir.LirTranslator;
+import IC.lir.RegisterFactory;
 import java_cup.runtime.Symbol;
 
 import java.io.FileNotFoundException;
@@ -74,6 +77,14 @@ public class Compiler {
 
 			if (getString(args, "-dump-symtab") != null)
 				printSymbolAndTypeTable(rootSymbol);
+
+			System.out.println();
+			LirTranslator lirTranslator = new LirTranslator();
+			RegisterFactory factory = new RegisterFactory();
+			List<LirLine> lirProgram = rootNode.accept(lirTranslator, factory);
+			for (LirLine lirLine : lirProgram) {
+				System.out.print(lirLine.toString());
+			}
 		}
 		catch (FileNotFoundException e) {
 			e.printStackTrace();

@@ -1,0 +1,35 @@
+package IC.lir;
+
+import IC.AST.Field;
+import IC.AST.Method;
+
+import java.util.Map;
+
+public class ClassLayout {
+
+    private Map<String,Integer> methodToOffset;
+    // DVPtr = 0
+    private Map<String,Integer> fieldToOffset;
+
+    public ClassLayout(Map<String,Integer> methodToOffset, Map<String,Integer> fieldToOffset) {
+        this.methodToOffset = methodToOffset;
+        this.fieldToOffset = fieldToOffset;
+    }
+
+    public int getMethodOffset(String methodName) {
+        return methodToOffset.get(methodName);
+    }
+
+    public int getFieldOffset(String fieldName) {
+        return fieldToOffset.get(fieldName);
+    }
+
+    public int getMethodToOffsetSize() {
+        return methodToOffset.size();
+    }
+
+    public int getFieldToOffsetSize() {
+        return fieldToOffset.size();
+    }
+
+}
