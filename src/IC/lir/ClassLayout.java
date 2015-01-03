@@ -3,7 +3,9 @@ package IC.lir;
 import IC.AST.Field;
 import IC.AST.Method;
 
+import java.util.Collection;
 import java.util.Map;
+import java.util.Set;
 
 public class ClassLayout {
 
@@ -30,6 +32,10 @@ public class ClassLayout {
 
     public int getFieldToOffsetSize() {
         return fieldToOffset.size();
+    }
+
+    public Set<String> getMethodNames() {
+        return methodToOffset.keySet();
     }
 
 }

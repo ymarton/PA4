@@ -24,6 +24,9 @@ public class DispacthTableBuilder {
             Map<String,Integer> methodToOffset = new HashMap<String, Integer>();
             int methodOffset = 0;
             for (Method method : icClass.getMethods()) {
+                if (method.getName().equals("main")) {
+                    continue;
+                }
                 methodToOffset.put(method.getName(), methodOffset);
                 methodOffset++;
             }

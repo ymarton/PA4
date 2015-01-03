@@ -24,6 +24,7 @@ public class LirTranslator implements PropagatingVisitor<RegisterFactory,List<Li
     private String currentClass;
     private ScopeChecker scopeChecker = new ScopeChecker();
     private TypeChecking typeChecking = new TypeChecking();
+    private List<DispatchTable> dispatchTableList = new LinkedList<DispatchTable>();
 
     @Override
     public List<LirLine> visit(Program program, RegisterFactory factory) throws Exception {
@@ -32,12 +33,14 @@ public class LirTranslator implements PropagatingVisitor<RegisterFactory,List<Li
         for (ICClass icClass : program.getClasses()) {
             instructionList.addAll(icClass.accept(this, factory));
         }
+        instructionList.addAll(0, dispatchTableList);
         instructionList.addAll(0, stringLiterals);
         return instructionList;
     }
 
     @Override
     public List<LirLine> visit(ICClass icClass, RegisterFactory factory) throws Exception {
+        dispatchTableList.add(new DispatchTable(icClass.getName(), classLayouts.get(icClass.getName())));
         List<LirLine> classLirLineList = new LinkedList<LirLine>();
         currentClass = icClass.getName();
         for (Method method : icClass.getMethods()) {
@@ -54,11 +57,11 @@ public class LirTranslator implements PropagatingVisitor<RegisterFactory,List<Li
         //TODO: set all arguments to new registers and somehow pass that information
         //on second thought, is it done automatically on each statement?
         List<LirLine> methodLirLineList = new LinkedList<LirLine>();
+        methodLirLineList.add(new BlankLine());
         for (Statement statement : method.getStatements()) {
             methodLirLineList.addAll(statement.accept(this, factory));
         }
-        methodLirLineList.add(0, new Label("_" + currentClass + "_" + method.getName()));
-        methodLirLineList.add(new BlankLine());
+        methodLirLineList.add(1, new Label("_" + currentClass + "_" + method.getName()));
         return methodLirLineList;
     }
 
@@ -67,8 +70,15 @@ public class LirTranslator implements PropagatingVisitor<RegisterFactory,List<Li
         //TODO: set all arguments to new registers and somehow pass that information
         //on second thought, is it done automatically on each statement?
         List<LirLine> methodLirLineList = new LinkedList<LirLine>();
+        methodLirLineList.add(new BlankLine());
         for (Statement statement : method.getStatements()) {
             methodLirLineList.addAll(statement.accept(this, factory));
+        }
+        if (method.getName().equals("main")) {
+            methodLirLineList.add(1, new Label("_ic_" + method.getName()));
+        }
+        else {
+            methodLirLineList.add(1, new Label("_" + currentClass + "_" + method.getName())); //TODO: check if _ic_main need to be at the end of the lir program
         }
         return methodLirLineList;
     }
@@ -120,7 +130,7 @@ public class LirTranslator implements PropagatingVisitor<RegisterFactory,List<Li
             if (!variableLocation.isExternal()) { //exp = exp
                 assignmentLirLineList.add(new BinaryInstruction(LirBinaryOps.MOVE, register1, variableLocation.getName()));
             }
-            else { //e.exp = exp
+            else { //e.exp = exp or exp1=exp2 whereas exp1 is inherited
                 //TODO: complete
             }
         }
@@ -254,8 +264,7 @@ public class LirTranslator implements PropagatingVisitor<RegisterFactory,List<Li
         String register = factory.allocateRegister();
         newClassLirLineList.add(new BinaryInstruction(LirBinaryOps.LIBRARY, "__alocateObject(" + objectSize + ")", register));
         factory.setTargetRegister(register);
-        //MoveField _newClass.getName()_DV ,R1.0
-//        newClassLirLineList.add(new BinaryInstruction(LirBinaryOps.MOVE , , register + ".0"));
+        newClassLirLineList.add(new BinaryInstruction(LirBinaryOps.MOVEFIELD, "_" + newClass.getName() + "_DV", register + ".0"));
         return newClassLirLineList;
     }
 
