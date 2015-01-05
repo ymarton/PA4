@@ -17,7 +17,17 @@ public class ClassLayout {
         this.methodToOffset = methodToOffset;
         this.fieldToOffset = fieldToOffset;
     }
-
+    
+    public Map<String,Integer> getMethodsMap()
+    {
+    	return this.methodToOffset;
+    }
+    
+    public Map<String, Integer> getFieldsMap()
+    {
+    	return this.fieldToOffset;
+    }
+    
     public int getMethodOffset(String methodName) {
         return methodToOffset.get(methodName);
     }

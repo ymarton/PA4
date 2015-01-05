@@ -17,6 +17,12 @@ public class ClassesGraph {
 	 * @param superName - super class name
 	 * @param derivedName - derived class name
 	 */
+	
+	public static HashMap<String, ClassNode> getAllVertices()
+	{
+		return vertices;
+	}
+	
 	public static void addSuperDerivedRelation(String superName, String derivedName)
 	{
 		ClassesGraph.derivedSuperRelation.put(derivedName, superName);
