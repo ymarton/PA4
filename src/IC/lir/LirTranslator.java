@@ -15,9 +15,11 @@ import IC.lir.Instructions.*;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Stack;
 
-public class LirTranslator implements PropagatingVisitor<RegisterFactory,List<LirLine>> {
+public class LirTranslator implements PropagatingVisitor<String,List<LirLine>> {
 
+	
 	/*
     private Map<String,ClassLayout> classLayouts;
     private List<LirLine> stringLiterals = new LinkedList<LirLine>();
@@ -29,13 +31,13 @@ public class LirTranslator implements PropagatingVisitor<RegisterFactory,List<Li
     /*private List<DispatchTable> dispatchTableList = new LinkedList<DispatchTable>();*/
 
     @Override
-    public List<LirLine> visit(Program program, RegisterFactory factory) throws Exception {
+    public List<LirLine> visit(Program program, String target) throws Exception {
     	DispacthTableBuilder.init(program);
     	DispacthTableBuilder.buildClassLayouts();
     	
         List<LirLine> instructionList = new LinkedList<LirLine>();
         for (ICClass icClass : program.getClasses()) {
-            instructionList.addAll(icClass.accept(this, factory));
+            instructionList.addAll(icClass.accept(this, null));
         }
         instructionList.addAll(0, CompileTimeData.getDispatchTables());
         instructionList.addAll(0, CompileTimeData.getStringLiterals());
@@ -43,7 +45,7 @@ public class LirTranslator implements PropagatingVisitor<RegisterFactory,List<Li
     }
 
     @Override
-    public List<LirLine> visit(ICClass icClass, RegisterFactory factory) throws Exception {
+    public List<LirLine> visit(ICClass icClass, String target) throws Exception {
     	String className = icClass.getName();
     	ClassLayout classLayout = CompileTimeData.getClassLayout(className);
     	DispatchTable classDT = new DispatchTable(className, classLayout);
@@ -54,31 +56,38 @@ public class LirTranslator implements PropagatingVisitor<RegisterFactory,List<Li
         List<LirLine> classInstructions = new LinkedList<LirLine>();
         currentClass = icClass.getName();
         for (Method method : icClass.getMethods()) {
-        	classInstructions.addAll(method.accept(this, factory));
+        	List<LirLine> methodInstructions = new LinkedList<LirLine>();
+        	LirLine methodLabel = new Label("_" + currentClass + "_" + method.getName());
+        	methodInstructions.add(methodLabel);
+        	methodInstructions.addAll(method.accept(this, null));
+        	classInstructions.addAll(methodInstructions);
         }
         return classInstructions;
     }
 
     @Override
-    public List<LirLine> visit(Field field, RegisterFactory factory) throws Exception 
+    public List<LirLine> visit(Field field, String target) throws Exception 
     { throw new Exception("shouldn't be invoked..."); }
 
     @Override
-    public List<LirLine> visit(VirtualMethod method, RegisterFactory factory) throws Exception {
+    public List<LirLine> visit(VirtualMethod method, String target) throws Exception {
         //TODO: set all arguments to new registers and somehow pass that information
         //on second thought, is it done automatically on each statement?
     	
         List<LirLine> methodInstructions = new LinkedList<LirLine>();
+        /* 
         LirLine methodLabel = new Label("_" + currentClass + "_" + method.getName());
         methodInstructions.add(methodLabel);
+         */
         methodInstructions.add(new BlankLine());
         for (Statement statement : method.getStatements()) {
-        	methodInstructions.addAll(statement.accept(this, factory));
+        	methodInstructions.addAll(statement.accept(this, null));
         }
        
         return methodInstructions;
     }
 
+    //TODO: change this also to new registerfactory
     @Override
     public List<LirLine> visit(StaticMethod method, RegisterFactory factory) throws Exception {
         //TODO: set all arguments to new registers and somehow pass that information
