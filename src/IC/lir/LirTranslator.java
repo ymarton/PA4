@@ -18,51 +18,65 @@ import java.util.Map;
 
 public class LirTranslator implements PropagatingVisitor<RegisterFactory,List<LirLine>> {
 
+	/*
     private Map<String,ClassLayout> classLayouts;
     private List<LirLine> stringLiterals = new LinkedList<LirLine>();
+    */
     private int stringCounter = 1;
     private String currentClass;
     private ScopeChecker scopeChecker = new ScopeChecker();
     private TypeChecking typeChecking = new TypeChecking();
-    private List<DispatchTable> dispatchTableList = new LinkedList<DispatchTable>();
+    /*private List<DispatchTable> dispatchTableList = new LinkedList<DispatchTable>();*/
 
     @Override
     public List<LirLine> visit(Program program, RegisterFactory factory) throws Exception {
-        classLayouts = DispacthTableBuilder.build(program);
+    	DispacthTableBuilder.init(program);
+    	DispacthTableBuilder.buildClassLayouts();
+    	
         List<LirLine> instructionList = new LinkedList<LirLine>();
         for (ICClass icClass : program.getClasses()) {
             instructionList.addAll(icClass.accept(this, factory));
         }
-        instructionList.addAll(0, dispatchTableList);
-        instructionList.addAll(0, stringLiterals);
+        instructionList.addAll(0, CompileTimeData.getDispatchTables());
+        instructionList.addAll(0, CompileTimeData.getStringLiterals());
         return instructionList;
     }
 
     @Override
     public List<LirLine> visit(ICClass icClass, RegisterFactory factory) throws Exception {
-        dispatchTableList.add(new DispatchTable(icClass.getName(), classLayouts.get(icClass.getName())));
-        List<LirLine> classLirLineList = new LinkedList<LirLine>();
+    	String className = icClass.getName();
+    	ClassLayout classLayout = CompileTimeData.getClassLayout(className);
+    	DispatchTable classDT = new DispatchTable(className, classLayout);
+    	CompileTimeData.addDispatchTable(classDT);
+    	
+        /*dispatchTableList.add(new DispatchTable(icClass.getName(), classLayouts.get(icClass.getName())));*/
+    	
+        List<LirLine> classInstructions = new LinkedList<LirLine>();
         currentClass = icClass.getName();
         for (Method method : icClass.getMethods()) {
-            classLirLineList.addAll(method.accept(this, factory));
+        	classInstructions.addAll(method.accept(this, factory));
         }
-        return classLirLineList;
+        return classInstructions;
     }
 
     @Override
-    public List<LirLine> visit(Field field, RegisterFactory factory) throws Exception { return null; }
+    public List<LirLine> visit(Field field, RegisterFactory factory) throws Exception 
+    { throw new Exception("shouldn't be invoked..."); }
 
     @Override
     public List<LirLine> visit(VirtualMethod method, RegisterFactory factory) throws Exception {
         //TODO: set all arguments to new registers and somehow pass that information
         //on second thought, is it done automatically on each statement?
-        List<LirLine> methodLirLineList = new LinkedList<LirLine>();
-        methodLirLineList.add(new BlankLine());
+    	
+        List<LirLine> methodInstructions = new LinkedList<LirLine>();
+        LirLine methodLabel = new Label("_" + currentClass + "_" + method.getName());
+        methodInstructions.add(methodLabel);
+        methodInstructions.add(new BlankLine());
         for (Statement statement : method.getStatements()) {
-            methodLirLineList.addAll(statement.accept(this, factory));
+        	methodInstructions.addAll(statement.accept(this, factory));
         }
-        methodLirLineList.add(1, new Label("_" + currentClass + "_" + method.getName()));
-        return methodLirLineList;
+       
+        return methodInstructions;
     }
 
     @Override

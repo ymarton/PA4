@@ -45,4 +45,14 @@ public abstract class BinaryOp extends Expression {
 		return operand2;
 	}
 
+	public int setAndGetRegWeight()
+	{
+		if (this.regWeight != -2)
+			return this.regWeight;
+		
+		int leftWeight = this.operand1.setAndGetRegWeight();
+		int rightWeight = this.operand2.setAndGetRegWeight();
+		this.regWeight = Expression.calcInternalRegWeight(leftWeight, rightWeight);
+		return this.regWeight;
+	}
 }

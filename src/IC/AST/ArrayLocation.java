@@ -60,4 +60,15 @@ public class ArrayLocation extends Location {
 			return null;
 		}
 	}
+
+	@Override
+	public int setAndGetRegWeight() {
+		if (this.regWeight != -2)
+			return this.regWeight;
+		
+		int baseWeight = this.array.setAndGetRegWeight();
+		int indexWeight = this.index.setAndGetRegWeight();
+		this.regWeight = Expression.calcInternalRegWeight(baseWeight, indexWeight);
+		return this.regWeight;
+	}
 }

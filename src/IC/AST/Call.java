@@ -37,4 +37,11 @@ public abstract class Call extends Expression {
 		return arguments;
 	}
 
+	public int setAndGetRegWeight() {
+		if (this.regWeight != -2)
+			return this.regWeight;
+		
+		this.regWeight = -1;
+		return this.regWeight;
+	}
 }

@@ -49,4 +49,13 @@ public class Length extends Expression {
 			return null;
 		}
 	}
+	@Override
+	public int setAndGetRegWeight() {
+		if (this.regWeight != -2)
+			return this.regWeight;
+		
+		int exprWeight = this.getArray().setAndGetRegWeight();
+		this.regWeight = Expression.calcInternalRegWeight(exprWeight, 1);
+		return this.regWeight;
+	}
 }

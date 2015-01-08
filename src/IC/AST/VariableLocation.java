@@ -75,4 +75,18 @@ public class VariableLocation extends Location {
 			return null;
 		}
 	}
+	@Override
+	public int setAndGetRegWeight() {
+		if (this.regWeight != -2)
+			return this.regWeight;
+		
+		if (!this.isExternal())
+			this.regWeight = 1;
+		else
+		{
+			int locationWeight = this.location.setAndGetRegWeight();
+			this.regWeight = Expression.calcInternalRegWeight(locationWeight, 1);
+		}
+		return this.regWeight;
+	}
 }

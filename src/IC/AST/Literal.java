@@ -73,4 +73,12 @@ public class Literal extends Expression {
 			return null;
 		}
 	}
+	@Override
+	public int setAndGetRegWeight() {
+		if (this.regWeight != -2)
+			return this.regWeight;
+		
+		this.regWeight = 0;
+		return this.regWeight;
+	}
 }

@@ -35,4 +35,12 @@ public abstract class UnaryOp extends Expression {
 		return operand;
 	}
 
+	public int setAndGetRegWeight()
+	{
+		if (this.regWeight != -2)
+			return this.regWeight;
+		
+		this.regWeight = this.operand.setAndGetRegWeight();
+		return this.regWeight;
+	}
 }

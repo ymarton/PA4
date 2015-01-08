@@ -60,7 +60,7 @@ public class DispacthTableBuilder {
 			
 			if (superClass != null)
 			{
-				ClassLayout superLayout = CompileTimeInfo.getClassLayout(superClass);
+				ClassLayout superLayout = CompileTimeData.getClassLayout(superClass);
 				Map<String, Integer> superFieldsMap = superLayout.getFieldsMap();
 				Map<String, Integer> superMethodsMap = superLayout.getMethodsMap();
 				classFieldsMap.putAll(superFieldsMap);
@@ -80,7 +80,7 @@ public class DispacthTableBuilder {
 			}
 			
 			ClassLayout classLayout = new ClassLayout(classMethodsMap, classFieldsMap);
-			CompileTimeInfo.addClassLayout(nextClass, classLayout);
+			CompileTimeData.addClassLayout(nextClass, classLayout);
 
 			Set<String> directChildren = nextClassNode.getNeighboursList().keySet();
 			for (String child : directChildren)

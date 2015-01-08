@@ -50,4 +50,12 @@ public class NewClass extends New {
 			return null;
 		}
 	}
+	
+	public int setAndGetRegWeight() {
+		if (this.regWeight != -2)
+			return this.regWeight;
+		
+		this.regWeight = -1;
+		return this.regWeight;
+	}
 }
