@@ -442,19 +442,21 @@ public class LirTranslator implements PropagatingVisitor<String,List<String>> {
     */
     public List<String> visit(MathUnaryOp unaryOp, String targetRegister) throws Exception {
         List<String> unaryOpBlock = new LinkedList<String>();
-        Stack<String> localRegisters = RegisterFactory.newLocalRegStack();
-        int numOfRequiredRegsisters = unaryOp.getOperand().setAndGetRegWeight();
-        if (numOfRequiredRegsisters == 0) {
-            unaryOpBlock.add(new BinaryInstruction(LirBinaryOps.MOVE, (String)(((Literal)unaryOp.getOperand()).getValue()), targetRegister).toString()); //ugly as hell
+        /*Stack<String> localRegisters = RegisterFactory.newLocalRegStack();*/
+        /*int numOfRequiredRegsisters = unaryOp.getOperand().setAndGetRegWeight();*/
+        if (targetRegister == null) {
+        	int intLiteralVal = (int) ((Literal)unaryOp.getOperand()).getValue();
+        	intLiteralVal *= -1; // mathUnaryOp can be only NEG
+            unaryOpBlock.add(String.valueOf(intLiteralVal)); //ugly as hell NOOOOOOOT
         }
         else {
-            String localTargetRegister = RegisterFactory.allocateRegister();
-            localRegisters.add(targetRegister);
-            List<String> operandBlock = unaryOp.getOperand().accept(this, localTargetRegister);
+            /*String localTargetRegister = RegisterFactory.allocateRegister();
+            localRegisters.add(targetRegister); */
+            List<String> operandBlock = unaryOp.getOperand().accept(this, targetRegister);
             unaryOpBlock.addAll(operandBlock);
-            unaryOpBlock.add(new BinaryInstruction(LirBinaryOps.MOVE, localTargetRegister, targetRegister).toString());
+            /*unaryOpBlock.add(new BinaryInstruction(LirBinaryOps.MOVE, localTargetRegister, targetRegister).toString());*/
             unaryOpBlock.add(new UnaryInstruction(LirUnaryOps.NEG, targetRegister).toString());
-            RegisterFactory.freeStackOfDeadRegisters(localRegisters);
+            /*RegisterFactory.freeStackOfDeadRegisters(localRegisters);*/
         }
         return unaryOpBlock;
     }
