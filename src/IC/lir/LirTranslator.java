@@ -11,6 +11,7 @@ import IC.Symbols.Symbol;
 import IC.Types.AbstractEntryTypeTable;
 import IC.Types.ArrayTypeEntry;
 import IC.lir.Instructions.*;
+import com.sun.prism.RectShadowGraphics;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -439,11 +440,23 @@ public class LirTranslator implements PropagatingVisitor<String,List<String>> {
       		maybe its better to return each or with flag doesnt matter now
       }
     */
-    public List<String> visit(MathUnaryOp unaryOp, String target) throws Exception {
-        List<String> unaryOpLirLineList = new LinkedList<String>();
-        unaryOpLirLineList.addAll(unaryOp.getOperand().accept(this, factory));
-        unaryOpLirLineList.add(new UnaryInstruction(LirUnaryOps.NEG, factory.getTargetRegister1()));
-        return unaryOpLirLineList;
+    public List<String> visit(MathUnaryOp unaryOp, String targetRegister) throws Exception {
+        List<String> unaryOpBlock = new LinkedList<String>();
+        Stack<String> localRegisters = RegisterFactory.newLocalRegStack();
+        int numOfRequiredRegsisters = unaryOp.getOperand().setAndGetRegWeight();
+        if (numOfRequiredRegsisters == 0) {
+            unaryOpBlock.add(new BinaryInstruction(LirBinaryOps.MOVE, (String)(((Literal)unaryOp.getOperand()).getValue()), targetRegister).toString()); //ugly as hell
+        }
+        else {
+            String localTargetRegister = RegisterFactory.allocateRegister();
+            localRegisters.add(targetRegister);
+            List<String> operandBlock = unaryOp.getOperand().accept(this, localTargetRegister);
+            unaryOpBlock.addAll(operandBlock);
+            unaryOpBlock.add(new BinaryInstruction(LirBinaryOps.MOVE, localTargetRegister, targetRegister).toString());
+            unaryOpBlock.add(new UnaryInstruction(LirUnaryOps.NEG, targetRegister).toString());
+            RegisterFactory.freeStackOfDeadRegisters(localRegisters);
+        }
+        return unaryOpBlock;
     }
 
     @Override
@@ -482,7 +495,7 @@ public class LirTranslator implements PropagatingVisitor<String,List<String>> {
             	break;
             case NULL:
             	value = "0";
-            	break;
+                break;
         }
         /*literalLirLineList.add(new BinaryInstruction(LirBinaryOps.MOVE, value, register));*/
         /*factory.setTargetRegister(register);*/
