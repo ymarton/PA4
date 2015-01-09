@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="lib" path="microLir/java-cup-v11a-runtime.jar"/>
+	<classpathentry kind="lib" path="microLir/microLIR.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="src/IC/Parser/java-cup-11b-runtime.jar"/>
+	<classpathentry kind="lib" path="src/IC/Parser/java-cup-11b.jar"/>
+	<classpathentry kind="src" path="microLir/src"/>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>

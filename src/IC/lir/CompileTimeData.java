@@ -1,17 +1,20 @@
 package IC.lir;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import IC.lir.Instructions.DispatchTable;
 import IC.lir.Instructions.LirLine;
+import IC.lir.Instructions.stringLiteral;
 
 public class CompileTimeData {
 	
 	private static Map<String,ClassLayout> classLayouts = new HashMap<String, ClassLayout>();
-    private static List<LirLine> stringLiterals = new LinkedList<LirLine>();
+    private static HashMap<String, Integer> stringLiterals = new LinkedHashMap<String, Integer>();
     private static List<DispatchTable> dispatchTables = new LinkedList<DispatchTable>();
     
 	private CompileTimeData() {}
@@ -21,14 +24,24 @@ public class CompileTimeData {
 		return classLayouts.get(className);
 	}
 	
-	public static List<LirLine> getStringLiterals()
+	
+	public static List<String> getStringLiterals()
 	{
-		return stringLiterals;
+		List <String> literalsList = new LinkedList<String>();
+		for (Entry<String, Integer> stringLiteral : stringLiterals.entrySet()) {
+			literalsList.add("str" + stringLiteral.getValue() + ": \"" + stringLiteral.getKey() + "\"");
+		}
+		return literalsList;
 	}
 	
-	public static List<DispatchTable> getDispatchTables()
+	
+	public static List<String> getDispatchTables()
 	{
-		return dispatchTables;
+		List <String> dtList = new LinkedList<String>();
+		for (DispatchTable dt : dispatchTables) {
+			dtList.add(dt.toString());
+		}
+		return dtList;
 	}
 	
 	public static void addDispatchTable(DispatchTable dispatchTable)
@@ -41,10 +54,20 @@ public class CompileTimeData {
 		classLayouts.put(className, layout);
 	}
 	
-	public static void addStringLiteral(LirLine stringLiteral)
+	public static String addStringLiteralGetSymbol(String str)
 	{
-		stringLiterals.add(stringLiteral);
+		int index;
+		if (!stringLiterals.containsKey(str))
+		{
+			index  = stringLiterals.size()+1;
+			stringLiterals.put(str, index);
+		}
+		else
+			index = stringLiterals.get(str);
+		
+		return "str" + index;
 	}
+	
 	public static boolean isAlreadyBuilt(String className)
 	{
 		return classLayouts.containsKey(classLayouts);

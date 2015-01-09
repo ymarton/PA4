@@ -5,7 +5,7 @@ import IC.lir.ClassLayout;
 import java.util.LinkedList;
 import java.util.List;
 
-public class DispatchTable extends LirLine{
+public class DispatchTable {
 
     private String name;
     private String className;

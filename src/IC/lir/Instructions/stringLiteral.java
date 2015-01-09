@@ -14,4 +14,6 @@ public class stringLiteral extends LirLine {
     public String toString() {
         return name + ": " + value + "\n";
     }
+    
+    public String ge
 }
