@@ -45,6 +45,7 @@ public class LirTranslator implements PropagatingVisitor<String,List<LirLine>> {
     }
 
     @Override
+  //TODO: check if _ic_main need to be at the end of the lir program
     public List<LirLine> visit(ICClass icClass, String target) throws Exception {
     	String className = icClass.getName();
     	ClassLayout classLayout = CompileTimeData.getClassLayout(className);
@@ -57,7 +58,15 @@ public class LirTranslator implements PropagatingVisitor<String,List<LirLine>> {
         currentClass = icClass.getName();
         for (Method method : icClass.getMethods()) {
         	List<LirLine> methodInstructions = new LinkedList<LirLine>();
-        	LirLine methodLabel = new Label("_" + currentClass + "_" + method.getName());
+        	LirLine methodLabel;
+        	
+        	if ( (method instanceof StaticMethod) && (method.getName().equals("main")) )
+        		methodLabel = new Label("_ic_" + method.getName());
+        	else
+        		methodLabel = new Label("_" + currentClass + "_" + method.getName());
+        	
+        	if (!classInstructions.isEmpty())
+        		methodInstructions.add(new BlankLine());
         	methodInstructions.add(methodLabel);
         	methodInstructions.addAll(method.accept(this, null));
         	classInstructions.addAll(methodInstructions);
@@ -79,7 +88,6 @@ public class LirTranslator implements PropagatingVisitor<String,List<LirLine>> {
         LirLine methodLabel = new Label("_" + currentClass + "_" + method.getName());
         methodInstructions.add(methodLabel);
          */
-        methodInstructions.add(new BlankLine());
         for (Statement statement : method.getStatements()) {
         	methodInstructions.addAll(statement.accept(this, null));
         }
@@ -87,36 +95,39 @@ public class LirTranslator implements PropagatingVisitor<String,List<LirLine>> {
         return methodInstructions;
     }
 
-    //TODO: change this also to new registerfactory
+    //TODO: intentionally didnt add a methodLabel? now adding for each method at icclass level...
     @Override
-    public List<LirLine> visit(StaticMethod method, RegisterFactory factory) throws Exception {
+    public List<LirLine> visit(StaticMethod method, String target) throws Exception {
         //TODO: set all arguments to new registers and somehow pass that information
         //on second thought, is it done automatically on each statement?
-        List<LirLine> methodLirLineList = new LinkedList<LirLine>();
-        methodLirLineList.add(new BlankLine());
+        List<LirLine> methodInstructions = new LinkedList<LirLine>();
+        /*methodInstructions.add(new BlankLine());*/
+        
         for (Statement statement : method.getStatements()) {
-            methodLirLineList.addAll(statement.accept(this, factory));
+        	methodInstructions.addAll(statement.accept(this, null));
         }
+        /*
         if (method.getName().equals("main")) {
             methodLirLineList.add(1, new Label("_ic_" + method.getName()));
         }
         else {
             methodLirLineList.add(1, new Label("_" + currentClass + "_" + method.getName())); //TODO: check if _ic_main need to be at the end of the lir program
         }
-        return methodLirLineList;
+        */
+        return methodInstructions;
     }
 
     @Override
-    public List<LirLine> visit(LibraryMethod method, RegisterFactory factory) throws Exception { return null; }
+    public List<LirLine> visit(LibraryMethod method, String target) throws Exception { throw new Exception("shouldn't be invoked..."); }
 
     @Override
-    public List<LirLine> visit(Formal formal, RegisterFactory factory) throws Exception { return null; }
+    public List<LirLine> visit(Formal formal, String target) throws Exception { throw new Exception("shouldn't be invoked..."); }
 
     @Override
-    public List<LirLine> visit(PrimitiveType type, RegisterFactory factory) throws Exception { return null; }
+    public List<LirLine> visit(PrimitiveType type, String target) throws Exception { throw new Exception("shouldn't be invoked..."); }
 
     @Override
-    public List<LirLine> visit(UserType type, RegisterFactory factory) throws Exception { return null; }
+    public List<LirLine> visit(UserType type, String target) throws Exception { throw new Exception("shouldn't be invoked..."); }
 
 //    @Override
 //    public List<LirLine> visit(Assignment assignment, RegisterFactory factory) throws Exception {
