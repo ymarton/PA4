@@ -169,12 +169,13 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         assignmentLirLineList.addAll(locationTR);
 
         BinaryInstruction assignInst = null;
+        String assignOp = assignRegs.get(0);
+        String locationOp;
         if (location instanceof ArrayLocation)
         {
         	// locationRegs = {base, index}, index can be immediate/reg
         	// assignRegs = immediate/reg/memory
-        	String assignOp = assignRegs.get(0);
-        	String locationOp = locationRegs.get(0) + "[" + locationRegs.get(1)+ "]";
+        	locationOp = locationRegs.get(0) + "[" + locationRegs.get(1)+ "]";
         	
         	if (CompileTimeData.isImmediate(assignOp))
         	{
@@ -196,40 +197,66 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         		assignmentLirLineList.add(assignInst.toString());
         		RegisterFactory.freeRegister(tempReg);
         	}
-        	
-        	if (CompileTimeData.isRegName(locationRegs.get(0)))
-        			RegisterFactory.freeRegister(locationRegs.get(0));
-        	
-        	if (CompileTimeData.isRegName(locationRegs.get(1)))
-        			RegisterFactory.freeRegister(locationRegs.get(1));
-        	
-        	return assignmentLirLineList;
         }
 
         else if (location instanceof VariableLocation) {
-            //locationRegs = (memory)
+            //locationRegs = {memory}/{reg,immediate}
             //assignRegs = (immediate/reg/memory)
-            String assignmentOperand = assignRegs.get(0);
-            String locationOperand = locationRegs.get(0);
-            if (CompileTimeData.isRegName(assignmentOperand)) {
-                assignInst= new BinaryInstruction(LirBinaryOps.MOVE, assignmentOperand, locationOperand);
-                assignmentLirLineList.add(assignInst.toString());
-                RegisterFactory.freeRegister(assignmentOperand);
+            if (!((VariableLocation) location).isExternal()) {//location = var
+                locationOp = locationRegs.get(0);
+                if (CompileTimeData.isImmediate(assignOp))
+                {
+                    assignInst= new BinaryInstruction(LirBinaryOps.MOVE, assignOp, locationOp);
+                    assignmentLirLineList.add(assignInst.toString());
+                }
+                else if (CompileTimeData.isRegName(assignOp))
+                {
+                    assignInst= new BinaryInstruction(LirBinaryOps.MOVE, assignOp, locationOp);
+                    assignmentLirLineList.add(assignInst.toString());
+                    RegisterFactory.freeRegister(assignOp);
+                }
+                else // memory (assignOp is strX or local var)
+                {
+                    String tempReg = RegisterFactory.allocateRegister();
+                    BinaryInstruction getMem = new BinaryInstruction(LirBinaryOps.MOVE, assignOp, tempReg);
+                    assignmentLirLineList.add(getMem.toString());
+                    assignInst= new BinaryInstruction(LirBinaryOps.MOVE, tempReg, locationOp);
+                    assignmentLirLineList.add(assignInst.toString());
+                    RegisterFactory.freeRegister(tempReg);
+                }
             }
-            else if (CompileTimeData.isImmediate(assignmentOperand) || CompileTimeData.isMemory(assignmentOperand)) {
-                String tempRegister = RegisterFactory.allocateRegister();
-                BinaryInstruction getMemory = new BinaryInstruction(LirBinaryOps.MOVE, assignmentOperand, tempRegister);
-                assignmentLirLineList.add(getMemory.toString());
-                assignInst = new BinaryInstruction(LirBinaryOps.MOVE, tempRegister, locationOperand);
-                assignmentLirLineList.add(assignInst.toString());
-                RegisterFactory.freeRegister(tempRegister);
+            else { //location = exp.var
+                locationOp = locationRegs.get(0) + "." + locationRegs.get(1)+ "]";
+                if (CompileTimeData.isImmediate(assignOp))
+                {
+                    assignInst= new BinaryInstruction(LirBinaryOps.MOVEFIELD, assignOp, locationOp);
+                    assignmentLirLineList.add(assignInst.toString());
+                }
+                else if (CompileTimeData.isRegName(assignOp))
+                {
+                    assignInst= new BinaryInstruction(LirBinaryOps.MOVEFIELD, assignOp, locationOp);
+                    assignmentLirLineList.add(assignInst.toString());
+                    RegisterFactory.freeRegister(assignOp);
+                }
+                else // memory (assignOp is strX or local var)
+                {
+                    String tempReg = RegisterFactory.allocateRegister();
+                    BinaryInstruction getMem = new BinaryInstruction(LirBinaryOps.MOVE, assignOp, tempReg);
+                    assignmentLirLineList.add(getMem.toString());
+                    assignInst= new BinaryInstruction(LirBinaryOps.MOVEFIELD, tempReg, locationOp);
+                    assignmentLirLineList.add(assignInst.toString());
+                    RegisterFactory.freeRegister(tempReg);
+                }
             }
-
-            if (CompileTimeData.isRegName(locationOperand))
-                RegisterFactory.freeRegister(locationOperand);
-
-            return assignmentLirLineList;
         }
+
+        if (CompileTimeData.isRegName(locationRegs.get(0)))
+            RegisterFactory.freeRegister(locationRegs.get(0));
+
+        if (CompileTimeData.isRegName(locationRegs.get(1)))
+            RegisterFactory.freeRegister(locationRegs.get(1));
+
+        return assignmentLirLineList;
 
 
 
