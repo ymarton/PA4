@@ -168,13 +168,13 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         assignmentLirLineList.addAll(assignTR);
         assignmentLirLineList.addAll(locationTR);
 
+        BinaryInstruction assignInst = null;
         if (location instanceof ArrayLocation)
         {
         	// locationRegs = {base, index}, index can be immediate/reg
         	// assignRegs = immediate/reg/memory
         	String assignOp = assignRegs.get(0);
         	String locationOp = locationRegs.get(0) + "[" + locationRegs.get(1)+ "]";
-        	BinaryInstruction assignInst = null;
         	
         	if (CompileTimeData.isImmediate(assignOp))
         	{
@@ -205,6 +205,38 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         	
         	return assignmentLirLineList;
         }
+
+        else if (location instanceof VariableLocation) {
+            //locationRegs = (memory)
+            //assignRegs = (immediate/reg/memory)
+            String assignmentOperand = assignRegs.get(0);
+            String locationOperand = locationRegs.get(0);
+            if (CompileTimeData.isRegName(assignmentOperand)) {
+                assignInst= new BinaryInstruction(LirBinaryOps.MOVE, assignmentOperand, locationOperand);
+                assignmentLirLineList.add(assignInst.toString());
+                RegisterFactory.freeRegister(assignmentOperand);
+            }
+            else if (CompileTimeData.isImmediate(assignmentOperand) || CompileTimeData.isMemory(assignmentOperand)) {
+                String tempRegister = RegisterFactory.allocateRegister();
+                BinaryInstruction getMemory = new BinaryInstruction(LirBinaryOps.MOVE, assignmentOperand, tempRegister);
+                assignmentLirLineList.add(getMemory.toString());
+                assignInst = new BinaryInstruction(LirBinaryOps.MOVE, tempRegister, locationOperand);
+                assignmentLirLineList.add(assignInst.toString());
+                RegisterFactory.freeRegister(tempRegister);
+            }
+
+            if (CompileTimeData.isRegName(locationOperand))
+                RegisterFactory.freeRegister(locationOperand);
+
+            return assignmentLirLineList;
+        }
+
+
+
+
+
+
+
         List<String> locationTR;
         String locationReg = null;
         String locationArrayPos = null;
