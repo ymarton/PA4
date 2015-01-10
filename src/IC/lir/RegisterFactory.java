@@ -18,6 +18,7 @@ public class RegisterFactory {
         registerCounter = 0;
     }
 	*/
+	
     public static String allocateRegister() {
     	if (!RegisterFactory.deadRegistersPool.isEmpty())
     		return RegisterFactory.deadRegistersPool.pop();

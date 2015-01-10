@@ -11,12 +11,14 @@ import IC.Symbols.Symbol;
 import IC.Types.AbstractEntryTypeTable;
 import IC.Types.ArrayTypeEntry;
 import IC.lir.Instructions.*;
+
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Stack;
 
-public class LirTranslator implements PropagatingVisitor<String,List<String>> {
+public class LirTranslator implements PropagatingVisitor<List<String>,List<String>> {
 
 	
 	/*
@@ -30,7 +32,7 @@ public class LirTranslator implements PropagatingVisitor<String,List<String>> {
     /*private List<DispatchTable> dispatchTableList = new LinkedList<DispatchTable>();*/
 
     @Override
-    public List<String> visit(Program program, String target) throws Exception {
+    public List<String> visit(Program program, List<String> target) throws Exception {
     	DispacthTableBuilder.init(program);
     	DispacthTableBuilder.buildClassLayouts();
     	
@@ -45,7 +47,7 @@ public class LirTranslator implements PropagatingVisitor<String,List<String>> {
 
     @Override
   //TODO: check if _ic_main need to be at the end of the lir program
-    public List<String> visit(ICClass icClass, String target) throws Exception {
+    public List<String> visit(ICClass icClass, List<String> target) throws Exception {
     	String className = icClass.getName();
     	ClassLayout classLayout = CompileTimeData.getClassLayout(className);
     	DispatchTable classDT = new DispatchTable(className, classLayout);
@@ -74,11 +76,11 @@ public class LirTranslator implements PropagatingVisitor<String,List<String>> {
     }
 
     @Override
-    public List<String> visit(Field field, String target) throws Exception 
+    public List<String> visit(Field field, List<String> target) throws Exception 
     { throw new Exception("shouldn't be invoked..."); }
 
     @Override
-    public List<String> visit(VirtualMethod method, String target) throws Exception {
+    public List<String> visit(VirtualMethod method, List<String> target) throws Exception {
         //TODO: set all arguments to new registers and somehow pass that information
         //on second thought, is it done automatically on each statement?
     	
@@ -96,7 +98,7 @@ public class LirTranslator implements PropagatingVisitor<String,List<String>> {
 
     //TODO: intentionally didnt add a methodLabel? now adding for each method at icclass level...
     @Override
-    public List<String> visit(StaticMethod method, String target) throws Exception {
+    public List<String> visit(StaticMethod method, List<String> target) throws Exception {
         //TODO: set all arguments to new registers and somehow pass that information
         //on second thought, is it done automatically on each statement?
         List<String> methodInstructions = new LinkedList<String>();
@@ -143,13 +145,14 @@ public class LirTranslator implements PropagatingVisitor<String,List<String>> {
 //    }
 
     @Override
-    public List<String> visit(Assignment assignment, String target) throws Exception {
+    public List<String> visit(Assignment assignment, List<String> target) throws Exception {
         List<String> assignmentLirLineList = new LinkedList<String>();
         
         Expression assignExpr = assignment.getAssignment();
-        int regsForAssignment = assignExpr.setAndGetRegWeight();
+        List<String> assignRegs = new ArrayList<String>();
+        List<String> assignTR = assignExpr.accept(this, assignRegs);
+        /*
         List<String> assignTR = null;
-        String assignReg = null;
         if (regsForAssignment == 0)
         	assignTR = assignExpr.accept(this, null);
         else
@@ -157,10 +160,51 @@ public class LirTranslator implements PropagatingVisitor<String,List<String>> {
         	assignReg = RegisterFactory.allocateRegister();
         	assignTR = assignExpr.accept(this, assignReg);
         }
-        
+        */
         Location location = assignment.getVariable();
-        int regsForLocation = location.setAndGetRegWeight();
+        List<String> locationRegs = new ArrayList<String>();
+        List<String> locationTR = assignExpr.accept(this, locationRegs);
         
+        assignmentLirLineList.addAll(assignTR);
+        assignmentLirLineList.addAll(locationTR);
+
+        if (location instanceof ArrayLocation)
+        {
+        	// locationRegs = {base, index}, index can be immediate/reg
+        	// assignRegs = immediate/reg/memory
+        	String assignOp = assignRegs.get(0);
+        	String locationOp = locationRegs.get(0) + "[" + locationRegs.get(1)+ "]";
+        	BinaryInstruction assignInst = null;
+        	
+        	if (CompileTimeData.isImmediate(assignOp))
+        	{
+        		assignInst= new BinaryInstruction(LirBinaryOps.MOVEARRAY, assignOp, locationOp);
+        		assignmentLirLineList.add(assignInst.toString());
+        	}	
+        	else if (CompileTimeData.isRegName(assignOp))
+        	{
+        		assignInst= new BinaryInstruction(LirBinaryOps.MOVEARRAY, assignOp, locationOp);
+        		assignmentLirLineList.add(assignInst.toString());
+        		RegisterFactory.freeRegister(assignOp);
+        	}
+        	else // memory (assignOp is strX or local var)
+        	{
+        		String tempReg = RegisterFactory.allocateRegister();
+        		BinaryInstruction getMem = new BinaryInstruction(LirBinaryOps.MOVE, assignOp, tempReg);
+        		assignmentLirLineList.add(getMem.toString());
+        		assignInst= new BinaryInstruction(LirBinaryOps.MOVEARRAY, tempReg, locationOp);
+        		assignmentLirLineList.add(assignInst.toString());
+        		RegisterFactory.freeRegister(tempReg);
+        	}
+        	
+        	if (CompileTimeData.isRegName(locationRegs.get(0)))
+        			RegisterFactory.freeRegister(locationRegs.get(0));
+        	
+        	if (CompileTimeData.isRegName(locationRegs.get(1)))
+        			RegisterFactory.freeRegister(locationRegs.get(1));
+        	
+        	return assignmentLirLineList;
+        }
         List<String> locationTR;
         String locationReg = null;
         String locationArrayPos = null;

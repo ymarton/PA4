@@ -24,7 +24,50 @@ public class CompileTimeData {
 		return classLayouts.get(className);
 	}
 	
+	public static boolean isRegName(String candidate)
+	{
+		if (!candidate.startsWith("R"))
+			return false;
+		candidate = candidate.replaceFirst("R", "");
+		try {
+			int regnum = Integer.parseInt(candidate);
+			if (regnum < 0)
+				return false;
+		} catch (Exception e) {
+			return false;
+		}
+		return true;
+	}
 	
+	public static boolean isStrLitName(String candidate)
+	{
+		if (!candidate.startsWith("str"))
+			return false;
+		candidate = candidate.replaceFirst("str", "");
+		try {
+			int regnum = Integer.parseInt(candidate);
+			if (regnum < 1)
+				return false;
+		} catch (Exception e) {
+			return false;
+		}
+		return true;
+	}
+	
+	public static boolean isImmediate(String candidate)
+	{
+		try {
+			Integer.parseInt(candidate);
+			return true;
+		} catch (Exception e) {
+			return false;
+		}
+	}
+	
+	public static boolean isMemory(String candidate)
+	{
+		return ( isRegName(candidate) || isImmediate(candidate) )
+	}
 	public static List<String> getStringLiterals()
 	{
 		List <String> literalsList = new LinkedList<String>();
