@@ -34,6 +34,10 @@ public class RegisterFactory {
 		}
     }
     
+    public static void freeRegister(String deadReg)
+    {
+    	deadRegistersPool.add(deadReg);
+    }
     public static Stack<String> newLocalRegStack()
     {
     	return new Stack<String>();

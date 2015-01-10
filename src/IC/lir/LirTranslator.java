@@ -11,8 +11,6 @@ import IC.Symbols.Symbol;
 import IC.Types.AbstractEntryTypeTable;
 import IC.Types.ArrayTypeEntry;
 import IC.lir.Instructions.*;
-import com.sun.prism.RectShadowGraphics;
-
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -145,8 +143,52 @@ public class LirTranslator implements PropagatingVisitor<String,List<String>> {
 //    }
 
     @Override
-    public List<String> visit(Assignment assignment, RegisterFactory factory) throws Exception {
+    public List<String> visit(Assignment assignment, String target) throws Exception {
         List<String> assignmentLirLineList = new LinkedList<String>();
+        
+        Expression assignExpr = assignment.getAssignment();
+        int regsForAssignment = assignExpr.setAndGetRegWeight();
+        List<String> assignTR = null;
+        String assignReg = null;
+        if (regsForAssignment == 0)
+        	assignTR = assignExpr.accept(this, null);
+        else
+        {
+        	assignReg = RegisterFactory.allocateRegister();
+        	assignTR = assignExpr.accept(this, assignReg);
+        }
+        
+        Location location = assignment.getVariable();
+        int regsForLocation = location.setAndGetRegWeight();
+        
+        List<String> locationTR;
+        String locationReg = null;
+        String locationArrayPos = null;
+        if ( (locationForAssign instanceof VariableLocation) && !((VariableLocation)locationForAssign).isExternal() )
+        {
+        	// we don't need more registration
+        	locationTR = locationForAssign.accept(this, null);
+        }
+        else // expr.ID or expr[expr]
+        {
+        	locationReg = RegisterFactory.allocateRegister();
+        	
+        	// expr[expr]
+        	if (locationForAssign instanceof ArrayLocation)
+        	{
+        		locationArrayPos = RegisterFactory.allocateRegister();
+        		locationTR
+        	}
+        	locationTR = locationForAssign.accept(this, locationReg);
+        }
+        
+        // 4 cases
+        if ((locationReg != null) && (assignReg != null))
+        {
+        	if (locationForAssign instanceof ArrayLocation) // expr[expr]
+        		
+        	BinaryInstruction finalMove = new BinaryInstruction(operator, operand1, operand2)
+        }
         factory.resetTargetRegisters();
         assignmentLirLineList.addAll(assignment.getAssignment().accept(this, factory));
         String register1 = factory.getTargetRegister1();
