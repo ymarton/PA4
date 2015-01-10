@@ -381,7 +381,18 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     }
 
     @Override
-    public List<String> visit(Length length, RegisterFactory factory) throws Exception { return null; }
+    public List<String> visit(Length length, List<String> targetRegisters) throws Exception {
+        List<String> lengthBlock = new LinkedList<String>();
+        Expression arrayExpression = length.getArray();
+        List<String> arrayExpressionRegisters = new LinkedList<String>();
+        List<String> arrayExpressionTR = arrayExpression.accept(this, arrayExpressionRegisters); //add ArrayLocation hack
+        lengthBlock.addAll(arrayExpressionTR);
+        String targetRegister = RegisterFactory.allocateRegister();
+        BinaryInstruction lengthInstruction = new BinaryInstruction(LirBinaryOps.ARRAYLENGTH, arrayExpressionRegisters.get(0), targetRegister);
+        lengthBlock.add(lengthInstruction.toString());
+        targetRegisters.add(targetRegister);
+        return lengthBlock;
+    }
 
     @Override
     public List<String> visit(MathBinaryOp binaryOp, RegisterFactory factory) throws Exception {
@@ -481,66 +492,70 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     }
 
     @Override
-    /* mathounaryop is a unaryop is a expression, each expression derived class is implementing the .setAndGetRegWeight() abstract func
-     which called *before* entering the visit, if already called - the second call will return the result without re-calc
-     if got 0 - we wouldnt invoke the following at all, we can manually write the equiv. one lir line because its literal ("-1*literalval" etc)
-     if >= 1 then invoke the accept after allocation register
-     code illustration:
-      Stack<String> usedLocaly = RegisterFactory.newLocalRegStack();
-      
-      int reqRegs = expr.setAndGetRegWeight()
-      if (instanceof UnaryOp) && reqRegs == 0
-      	do it yourself
-      else
-      {
-      		
-      		String REG = RegisterFactory.allocateRegister();
-      		usedLocaly.add(REG);
-      		List<String> lirblock = expr.accept(this, reg);
-      		in this spot what you want is in the REG register, internal regs used at the accept should clean itself
-      		....
-      		...
-      		.
-      		....
-      		asap/at most at the end you will return REG/other used to the pull with RegisterFactory.freeStackOfDeadRegisters(usedLocaly)
-      		maybe its better to return each or with flag doesnt matter now
-      }
-    */
-    public List<String> visit(MathUnaryOp unaryOp, String targetRegister) throws Exception {
+    public List<String> visit(MathUnaryOp unaryOp, List<String> targetRegisters) throws Exception {
         List<String> unaryOpBlock = new LinkedList<String>();
-        /*Stack<String> localRegisters = RegisterFactory.newLocalRegStack();*/
-        /*int numOfRequiredRegsisters = unaryOp.getOperand().setAndGetRegWeight();*/
-        if (targetRegister == null) {
-        	int intLiteralVal = (int) ((Literal)unaryOp.getOperand()).getValue();
-        	intLiteralVal *= -1; // mathUnaryOp can be only NEG
-            unaryOpBlock.add(String.valueOf(intLiteralVal)); //ugly as hell NOOOOOOOT
+        Expression operandExpression = unaryOp.getOperand();
+        List<String> operandRegisters = new ArrayList<String>();
+        List<String> unaryOpTR = operandExpression.accept(this, operandRegisters);
+        unaryOpBlock.addAll(unaryOpTR);
+        String targetOperandRegister = operandRegisters.get(0);
+        UnaryInstruction unaryOpInstruction;
+
+        if (CompileTimeData.isImmediate(targetOperandRegister)) {
+            int operandAsInt = Integer.parseInt(targetOperandRegister);
+            targetRegisters.add(String.valueOf(-1*operandAsInt));
         }
-        else {
-            /*String localTargetRegister = RegisterFactory.allocateRegister();
-            localRegisters.add(targetRegister); */
-            List<String> operandBlock = unaryOp.getOperand().accept(this, targetRegister);
-            unaryOpBlock.addAll(operandBlock);
-            /*unaryOpBlock.add(new BinaryInstruction(LirBinaryOps.MOVE, localTargetRegister, targetRegister).toString());*/
-            unaryOpBlock.add(new UnaryInstruction(LirUnaryOps.NEG, targetRegister).toString());
-            /*RegisterFactory.freeStackOfDeadRegisters(localRegisters);*/
+        else if (CompileTimeData.isRegName(targetOperandRegister)) {
+            unaryOpInstruction = new UnaryInstruction(LirUnaryOps.NEG, targetOperandRegister);
+            unaryOpBlock.add(unaryOpInstruction.toString());
+            targetRegisters.add(targetOperandRegister);
         }
+        else if (CompileTimeData.isMemory(targetOperandRegister)) {
+            String targetUnaryOpRegister = RegisterFactory.allocateRegister();
+            BinaryInstruction getMemory = new BinaryInstruction(LirBinaryOps.MOVE, targetOperandRegister, targetUnaryOpRegister);
+            unaryOpBlock.add(getMemory.toString());
+            unaryOpInstruction = new UnaryInstruction(LirUnaryOps.NEG, targetUnaryOpRegister);
+            unaryOpBlock.add(unaryOpInstruction.toString());
+            targetRegisters.add(targetUnaryOpRegister);
+        }
+
         return unaryOpBlock;
     }
 
     @Override
-    public List<String> visit(LogicalUnaryOp unaryOp, RegisterFactory factory) throws Exception {
-        List<String> unaryOpLirLineList = new LinkedList<String>();
-        unaryOpLirLineList.addAll(unaryOp.getOperand().accept(this, factory));
-        unaryOpLirLineList.add(new UnaryInstruction(LirUnaryOps.NOT, factory.getTargetRegister1()));
-        return unaryOpLirLineList;
+    public List<String> visit(LogicalUnaryOp unaryOp, List<String> targetRegisters) throws Exception {
+        List<String> unaryOpBlock = new LinkedList<String>();
+        Expression operandExpression = unaryOp.getOperand();
+        List<String> operandRegisters = new ArrayList<String>();
+        List<String> unaryOpTR = operandExpression.accept(this, operandRegisters);
+        unaryOpBlock.addAll(unaryOpTR);
+        String targetOperandRegister = operandRegisters.get(0);
+        UnaryInstruction unaryOpInstruction;
+
+        if (CompileTimeData.isImmediate(targetOperandRegister)) {
+            int operandAsInt = Integer.parseInt(targetOperandRegister);
+            targetRegisters.add(String.valueOf((operandAsInt + 1) % 2));
+        }
+        else if (CompileTimeData.isRegName(targetOperandRegister)) {
+            unaryOpInstruction = new UnaryInstruction(LirUnaryOps.NOT, targetOperandRegister);
+            unaryOpBlock.add(unaryOpInstruction.toString());
+            targetRegisters.add(targetOperandRegister);
+        }
+        else if (CompileTimeData.isMemory(targetOperandRegister)) {
+            String targetUnaryOpRegister = RegisterFactory.allocateRegister();
+            BinaryInstruction getMemory = new BinaryInstruction(LirBinaryOps.MOVE, targetOperandRegister, targetUnaryOpRegister);
+            unaryOpBlock.add(getMemory.toString());
+            unaryOpInstruction = new UnaryInstruction(LirUnaryOps.NOT, targetUnaryOpRegister);
+            unaryOpBlock.add(unaryOpInstruction.toString());
+            targetRegisters.add(targetUnaryOpRegister);
+        }
+
+        return unaryOpBlock;
     }
 
     //fixed 0901 TODO: null is indeed == 0?
     @Override
-    public List<String> visit(Literal literal, String target) throws Exception {
-        List<String> literalLirLineList = new LinkedList<String>();
-        /*String register = factory.allocateRegister();
-        LiteralTypes literalType = literal.getType();*/
+    public List<String> visit(Literal literal, List<String> targetRegisters) throws Exception {
         String value = null;
         switch (literal.getType()) {
             case TRUE:
@@ -550,13 +565,8 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
                 value = "0";
                 break;
             case STRING:
-                String strliteralVal = literal.getValue().toString();
-                value = CompileTimeData.addStringLiteralGetSymbol(strliteralVal);
-                /*
-                stringLiterals.add(new stringLiteral("str" + stringCounter, value));
-                value = "str" + stringCounter;
-                stringCounter++;
-                */
+                String strLiteralVal = literal.getValue().toString();
+                value = CompileTimeData.addStringLiteralGetSymbol(strLiteralVal);
                 break;
             case INTEGER:
             	value = String.valueOf(literal.getValue());
@@ -565,16 +575,18 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
             	value = "0";
                 break;
         }
-        /*literalLirLineList.add(new BinaryInstruction(LirBinaryOps.MOVE, value, register));*/
-        /*factory.setTargetRegister(register);*/
-        literalLirLineList.add(value);
-        return literalLirLineList;
+        targetRegisters.add(value);
+        return new LinkedList<String>();
     }
 
     @Override
-    public List<String> visit(ExpressionBlock expressionBlock, RegisterFactory factory) throws Exception {
-        List<String> expressionBlockLirLineList = new LinkedList<String>();
-        expressionBlockLirLineList.addAll(expressionBlock.getExpression().accept(this, factory));
-        return expressionBlockLirLineList;
+    public List<String> visit(ExpressionBlock expressionBlock, List<String> targetRegisters) throws Exception {
+        List<String> expressionBlockBlock = new LinkedList<String>();
+        Expression expression = expressionBlock.getExpression();
+        List<String> expressionRegisters = new LinkedList<String>();
+        List<String> expressionTR = expression.accept(this, expressionRegisters);
+        expressionBlockBlock.addAll(expressionTR);
+        targetRegisters.add(expressionRegisters.get(0));
+        return expressionBlockBlock;
     }
 }
