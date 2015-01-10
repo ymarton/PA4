@@ -137,7 +137,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         Expression assignExpr = assignment.getAssignment();
         List<String> assignRegs = new ArrayList<String>();
         List<String> assignTR = assignExpr.accept(this, assignRegs);
-        
+
         Location location = assignment.getVariable();
         List<String> locationRegs = new ArrayList<String>();
         List<String> locationTR = assignExpr.accept(this, locationRegs);
@@ -207,9 +207,6 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
                     assignmentLirLineList.add(assignInst.toString());
                     RegisterFactory.freeRegister(tempReg);
                 }
-
-                if (CompileTimeData.isRegName(locationRegs.get(0)))
-                    RegisterFactory.freeRegister(locationRegs.get(0));
             }
             else { //location = exp.var
                 locationOp = locationRegs.get(0) + "." + locationRegs.get(1);
@@ -236,71 +233,9 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 
                 if (CompileTimeData.isRegName(locationRegs.get(0)))
                     RegisterFactory.freeRegister(locationRegs.get(0));
-
-                if (CompileTimeData.isRegName(locationRegs.get(1)))
-                    RegisterFactory.freeRegister(locationRegs.get(1));
             }
         }
 
-        return assignmentLirLineList;
-
-
-
-
-
-
-
-        List<String> locationTR;
-        String locationReg = null;
-        String locationArrayPos = null;
-        if ( (locationForAssign instanceof VariableLocation) && !((VariableLocation)locationForAssign).isExternal() )
-        {
-        	// we don't need more registration
-        	locationTR = locationForAssign.accept(this, null);
-        }
-        else // expr.ID or expr[expr]
-        {
-        	locationReg = RegisterFactory.allocateRegister();
-        	
-        	// expr[expr]
-        	if (locationForAssign instanceof ArrayLocation)
-        	{
-        		locationArrayPos = RegisterFactory.allocateRegister();
-        		locationTR
-        	}
-        	locationTR = locationForAssign.accept(this, locationReg);
-        }
-        
-        // 4 cases
-        if ((locationReg != null) && (assignReg != null))
-        {
-        	if (locationForAssign instanceof ArrayLocation) // expr[expr]
-        		
-        	BinaryInstruction finalMove = new BinaryInstruction(operator, operand1, operand2)
-        }
-        factory.resetTargetRegisters();
-        assignmentLirLineList.addAll(assignment.getAssignment().accept(this, factory));
-        String register1 = factory.getTargetRegister1();
-        if (assignment.getVariable() instanceof ArrayLocation) { //exp[exp] = exp
-            ArrayLocation arrayLocation = (ArrayLocation) assignment.getVariable();
-            assignmentLirLineList.addAll(arrayLocation.getArray().accept(this, factory));
-            assignmentLirLineList.addAll(arrayLocation.getIndex().accept(this, factory));
-            String register2 = factory.getTargetRegister2();
-            String register3 = factory.getTargetRegister3();
-            assignmentLirLineList.add(new BinaryInstruction(LirBinaryOps.MOVEARRAY, register1, register2 + "[" + register3 + "]"));
-            factory.freeRegister(); //register3
-            factory.freeRegister(); //register2
-        }
-        else {
-            VariableLocation variableLocation = (VariableLocation) assignment.getVariable();
-            if (!variableLocation.isExternal()) { //exp = exp
-                assignmentLirLineList.add(new BinaryInstruction(LirBinaryOps.MOVE, register1, variableLocation.getName()));
-            }
-            else { //e.exp = exp or exp1=exp2 whereas exp1 is inherited
-                //TODO: complete
-            }
-        }
-        factory.freeRegister(); //register1
         return assignmentLirLineList;
     }
 
