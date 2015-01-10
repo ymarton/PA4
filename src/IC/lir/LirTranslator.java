@@ -130,20 +130,6 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     @Override
     public List<String> visit(UserType type, String target) throws Exception { throw new Exception("shouldn't be invoked..."); }
 
-//    @Override
-//    public List<String> visit(Assignment assignment, RegisterFactory factory) throws Exception {
-//        List<String> assignmentLirLineList = new LinkedList<String>();
-//        factory.resetTargetRegisters();
-//        assignmentLirLineList.addAll(assignment.getAssignment().accept(this, factory));
-//        assignmentLirLineList.addAll(assignment.getVariable().accept(this, factory));
-//        assignmentLirLineList.add(new BinaryInstruction(LirBinaryOps.MOVE, factory.getTargetRegister1(), factory.getTargetRegister2())); //fix this?
-//        Symbol variableSymbol = (Symbol)assignment.getVariable().accept(scopeChecker); //in order to find the variable's name. is there an easier way?
-//        assignmentLirLineList.add(new BinaryInstruction(LirBinaryOps.MOVE, factory.getTargetRegister2(), variableSymbol.getId()));
-//        factory.freeRegister();
-//        factory.freeRegister();
-//        return assignmentLirLineList;
-//    }
-
     @Override
     public List<String> visit(Assignment assignment, List<String> target) throws Exception {
         List<String> assignmentLirLineList = new LinkedList<String>();
@@ -151,16 +137,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         Expression assignExpr = assignment.getAssignment();
         List<String> assignRegs = new ArrayList<String>();
         List<String> assignTR = assignExpr.accept(this, assignRegs);
-        /*
-        List<String> assignTR = null;
-        if (regsForAssignment == 0)
-        	assignTR = assignExpr.accept(this, null);
-        else
-        {
-        	assignReg = RegisterFactory.allocateRegister();
-        	assignTR = assignExpr.accept(this, assignReg);
-        }
-        */
+        
         Location location = assignment.getVariable();
         List<String> locationRegs = new ArrayList<String>();
         List<String> locationTR = assignExpr.accept(this, locationRegs);
@@ -168,7 +145,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         assignmentLirLineList.addAll(assignTR);
         assignmentLirLineList.addAll(locationTR);
 
-        BinaryInstruction assignInst = null;
+        BinaryInstruction assignInst;
         String assignOp = assignRegs.get(0);
         String locationOp;
         if (location instanceof ArrayLocation)
@@ -197,6 +174,12 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         		assignmentLirLineList.add(assignInst.toString());
         		RegisterFactory.freeRegister(tempReg);
         	}
+
+            if (CompileTimeData.isRegName(locationRegs.get(0)))
+                RegisterFactory.freeRegister(locationRegs.get(0));
+
+            if (CompileTimeData.isRegName(locationRegs.get(1)))
+                RegisterFactory.freeRegister(locationRegs.get(1));
         }
 
         else if (location instanceof VariableLocation) {
@@ -224,9 +207,12 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
                     assignmentLirLineList.add(assignInst.toString());
                     RegisterFactory.freeRegister(tempReg);
                 }
+
+                if (CompileTimeData.isRegName(locationRegs.get(0)))
+                    RegisterFactory.freeRegister(locationRegs.get(0));
             }
             else { //location = exp.var
-                locationOp = locationRegs.get(0) + "." + locationRegs.get(1)+ "]";
+                locationOp = locationRegs.get(0) + "." + locationRegs.get(1);
                 if (CompileTimeData.isImmediate(assignOp))
                 {
                     assignInst= new BinaryInstruction(LirBinaryOps.MOVEFIELD, assignOp, locationOp);
@@ -247,14 +233,14 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
                     assignmentLirLineList.add(assignInst.toString());
                     RegisterFactory.freeRegister(tempReg);
                 }
+
+                if (CompileTimeData.isRegName(locationRegs.get(0)))
+                    RegisterFactory.freeRegister(locationRegs.get(0));
+
+                if (CompileTimeData.isRegName(locationRegs.get(1)))
+                    RegisterFactory.freeRegister(locationRegs.get(1));
             }
         }
-
-        if (CompileTimeData.isRegName(locationRegs.get(0)))
-            RegisterFactory.freeRegister(locationRegs.get(0));
-
-        if (CompileTimeData.isRegName(locationRegs.get(1)))
-            RegisterFactory.freeRegister(locationRegs.get(1));
 
         return assignmentLirLineList;
 
