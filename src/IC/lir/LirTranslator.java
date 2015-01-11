@@ -4,12 +4,6 @@ import IC.AST.*;
 import IC.AST.Return;
 import IC.AST.StaticCall;
 import IC.AST.VirtualCall;
-import IC.LiteralTypes;
-import IC.Semantic.ScopeChecker;
-import IC.Semantic.TypeChecking;
-import IC.Symbols.Symbol;
-import IC.Types.AbstractEntryTypeTable;
-import IC.Types.ArrayTypeEntry;
 import IC.lir.Instructions.*;
 
 import java.util.ArrayList;
@@ -20,16 +14,9 @@ import java.util.Stack;
 
 public class LirTranslator implements PropagatingVisitor<List<String>,List<String>> {
 
-	
-	/*
-    private Map<String,ClassLayout> classLayouts;
-    private List<String> stringLiterals = new LinkedList<String>();
-    */
-    private int stringCounter = 1;
     private String currentClass;
-    private ScopeChecker scopeChecker = new ScopeChecker();
-    private TypeChecking typeChecking = new TypeChecking();
-    /*private List<DispatchTable> dispatchTableList = new LinkedList<DispatchTable>();*/
+    private Label currentWhileLabel;
+    private Label currentEndWhileLabel;
 
     @Override
     public List<String> visit(Program program, List<String> target) throws Exception {
@@ -53,82 +40,62 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     	DispatchTable classDT = new DispatchTable(className, classLayout);
     	CompileTimeData.addDispatchTable(classDT);
     	
-        /*dispatchTableList.add(new DispatchTable(icClass.getName(), classLayouts.get(icClass.getName())));*/
-    	
         List<String> classInstructions = new LinkedList<String>();
         currentClass = icClass.getName();
         for (Method method : icClass.getMethods()) {
         	List<String> methodInstructions = new LinkedList<String>();
-        	String methodLabel;
-        	
+        	Label methodLabel;
         	if ( (method instanceof StaticMethod) && (method.getName().equals("main")) )
-        		methodLabel = "_ic_" + method.getName();
+        		methodLabel = new Label("_ic_" + method.getName());
         	else
-        		methodLabel = "_" + currentClass + "_" + method.getName();
+        		methodLabel = new Label("_" + currentClass + "_" + method.getName());
         	
         	if (!classInstructions.isEmpty())
-        		methodInstructions.add(SOMEENUM.BlankLine);
-        	methodInstructions.add(methodLabel);
+        		methodInstructions.add(new BlankLine().toString());
+        	methodInstructions.add(methodLabel.toString());
         	methodInstructions.addAll(method.accept(this, null));
         	classInstructions.addAll(methodInstructions);
         }
+
         return classInstructions;
     }
 
     @Override
-    public List<String> visit(Field field, List<String> target) throws Exception 
-    { throw new Exception("shouldn't be invoked..."); }
+    public List<String> visit(Field field, List<String> target) throws Exception { throw new Exception("shouldn't be invoked..."); }
 
     @Override
     public List<String> visit(VirtualMethod method, List<String> target) throws Exception {
         //TODO: set all arguments to new registers and somehow pass that information
         //on second thought, is it done automatically on each statement?
-    	
         List<String> methodInstructions = new LinkedList<String>();
-        /* 
-        String methodLabel = new Label("_" + currentClass + "_" + method.getName());
-        methodInstructions.add(methodLabel);
-         */
         for (Statement statement : method.getStatements()) {
         	methodInstructions.addAll(statement.accept(this, null));
         }
-       
         return methodInstructions;
     }
 
-    //TODO: intentionally didnt add a methodLabel? now adding for each method at icclass level...
     @Override
     public List<String> visit(StaticMethod method, List<String> target) throws Exception {
         //TODO: set all arguments to new registers and somehow pass that information
         //on second thought, is it done automatically on each statement?
         List<String> methodInstructions = new LinkedList<String>();
-        /*methodInstructions.add(new BlankLine());*/
-        
         for (Statement statement : method.getStatements()) {
         	methodInstructions.addAll(statement.accept(this, null));
         }
-        /*
-        if (method.getName().equals("main")) {
-            methodLirLineList.add(1, new Label("_ic_" + method.getName()));
-        }
-        else {
-            methodLirLineList.add(1, new Label("_" + currentClass + "_" + method.getName())); //TODO: check if _ic_main need to be at the end of the lir program
-        }
-        */
         return methodInstructions;
     }
 
     @Override
-    public List<String> visit(LibraryMethod method, String target) throws Exception { return new LinkedList<String>(); }
+    public List<String> visit(LibraryMethod method, List<String> target) throws Exception { return new LinkedList<String>(); }
 
     @Override
-    public List<String> visit(Formal formal, String target) throws Exception { throw new Exception("shouldn't be invoked..."); }
+    public List<String> visit(Formal formal, List<String> target) throws Exception { throw new Exception("shouldn't be invoked..."); }
 
     @Override
-    public List<String> visit(PrimitiveType type, String target) throws Exception { throw new Exception("shouldn't be invoked..."); }
+    public List<String> visit(PrimitiveType type, List<String> target) throws Exception { throw new Exception("shouldn't be invoked..."); }
 
     @Override
-    public List<String> visit(UserType type, String target) throws Exception { throw new Exception("shouldn't be invoked..."); }
+    public List<String> visit(UserType type, List<String> target) throws Exception { throw new Exception("shouldn't be invoked..."); }
 
     @Override
     public List<String> visit(Assignment assignment, List<String> target) throws Exception {
@@ -246,58 +213,93 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     public List<String> visit(Return returnStatement, RegisterFactory factory) throws Exception { return null; }
 
     @Override
-    public List<String> visit(If ifStatement, RegisterFactory factory) throws Exception {
-        List<String> ifLirLineList = new LinkedList<String>();
-        ifLirLineList.addAll(ifStatement.getCondition().accept(this, factory));
-        ifLirLineList.add(new BinaryInstruction(LirBinaryOps.COMPARE, "0", factory.getTargetRegister1()));
-        factory.freeRegister();
+    public List<String> visit(If ifStatement, List<String> targetRegisters) throws Exception {
+        List<String> ifStatementBlock = new LinkedList<String>();
+        Expression condition = ifStatement.getCondition();
+        List<String> conditionRegisters = new LinkedList<String>();
+        List<String> conditionTR = condition.accept(this, conditionRegisters);
+        ifStatementBlock.addAll(conditionTR);
+        BinaryInstruction checkCondition = new BinaryInstruction(LirBinaryOps.COMPARE, conditionRegisters.get(0), "0");
+        ifStatementBlock.add(checkCondition.toString());
+        RegisterFactory.freeRegister(conditionRegisters.get(0)); //is it okay here?
+
         Label endLabel = new Label("_end_if_label_" + ifStatement.getLine());
+        Statement operation = ifStatement.getOperation();
+        List<String> operationTR = operation.accept(this, null);
+
         if (!ifStatement.hasElse()){
-            ifLirLineList.add(new UnaryInstruction(LirUnaryOps.JUMPTRUE, endLabel));
-            ifLirLineList.addAll(ifStatement.getOperation().accept(this, factory));
-            ifLirLineList.add(endLabel);
+            UnaryInstruction falseCondition = new UnaryInstruction(LirUnaryOps.JUMPTRUE, endLabel);
+            ifStatementBlock.add(falseCondition.toString());
+            ifStatementBlock.addAll(operationTR);
+            ifStatementBlock.add(endLabel.toString());
         }
+
         else {
             Label falseLabel = new Label("_false_label_" + ifStatement.getLine());
-            ifLirLineList.add(new UnaryInstruction(LirUnaryOps.JUMPTRUE, falseLabel));
-            ifLirLineList.addAll(ifStatement.getOperation().accept(this, factory));
-            ifLirLineList.add(new UnaryInstruction(LirUnaryOps.JUMPTRUE, endLabel));
-            ifLirLineList.add(falseLabel);
-            ifLirLineList.addAll(ifStatement.getElseOperation().accept(this, factory));
-            ifLirLineList.add(endLabel);
+            UnaryInstruction falseCondition = new UnaryInstruction(LirUnaryOps.JUMPTRUE, falseLabel);
+            ifStatementBlock.add(falseCondition.toString());
+            ifStatementBlock.addAll(operationTR);
+            UnaryInstruction endIf = new UnaryInstruction(LirUnaryOps.JUMP, endLabel);
+            ifStatementBlock.add(endIf.toString());
+            ifStatementBlock.add(falseLabel.toString());
+            Statement elseOperation = ifStatement.getElseOperation();
+            List<String> elseOperationTR = elseOperation.accept(this, null);
+            ifStatementBlock.addAll(elseOperationTR);
+            ifStatementBlock.add(endLabel.toString());
         }
-        return ifLirLineList;
+
+        return ifStatementBlock;
     }
 
     @Override
-    public List<String> visit(While whileStatement, RegisterFactory factory) throws Exception {
-        List<String> whileLirLineList = new LinkedList<String>();
-        Label whileLabel = new Label("_while_label_" + whileStatement.getLine());
-        Label endLabel = new Label("_end_while_label_" + whileStatement.getLine());
-        whileLirLineList.add(whileLabel);
-        whileLirLineList.addAll(whileStatement.getCondition().accept(this, factory));
-        whileLirLineList.add(new BinaryInstruction(LirBinaryOps.COMPARE, "0", factory.getTargetRegister1()));
-        factory.freeRegister();
-        whileLirLineList.add(new UnaryInstruction(LirUnaryOps.JUMPTRUE, endLabel));
-        whileLirLineList.addAll(whileStatement.getOperation().accept(this, factory));
-        whileLirLineList.add(new UnaryInstruction(LirUnaryOps.JUMP, whileLabel));
-        whileLirLineList.add(endLabel);
-        return whileLirLineList;
+    public List<String> visit(While whileStatement, List<String> targetRegisters) throws Exception {
+        List<String> whileStatementBlock = new LinkedList<String>();
+        currentWhileLabel = new Label("_while_label_" + whileStatement.getLine());
+        currentEndWhileLabel = new Label("_end_while_label_" + whileStatement.getLine());
+
+        whileStatementBlock.add(currentWhileLabel.toString());
+
+        Expression condition = whileStatement.getCondition();
+        List<String> conditionRegisters = new LinkedList<String>();
+        List<String> conditionTR = condition.accept(this, conditionRegisters);
+        whileStatementBlock.addAll(conditionTR);
+
+        BinaryInstruction checkCondition = new BinaryInstruction(LirBinaryOps.COMPARE, conditionRegisters.get(0), "0");
+        whileStatementBlock.add(checkCondition.toString());
+        RegisterFactory.freeRegister(conditionRegisters.get(0)); //is it okay here?
+        UnaryInstruction falseCondition = new UnaryInstruction(LirUnaryOps.JUMPTRUE, currentEndWhileLabel);
+        whileStatementBlock.add(falseCondition.toString());
+        Statement operation = whileStatement.getOperation();
+        List<String> operationTR = operation.accept(this, null);
+        whileStatementBlock.addAll(operationTR);
+        UnaryInstruction startOver = new UnaryInstruction(LirUnaryOps.JUMP, currentWhileLabel);
+        whileStatementBlock.add(startOver.toString());
+        whileStatementBlock.add(currentEndWhileLabel.toString());
+        return whileStatementBlock;
     }
 
     @Override
-    public List<String> visit(Break breakStatement, RegisterFactory factory) throws Exception { return null; }
+    public List<String> visit(Break breakStatement, List<String> targetRegisters) throws Exception {
+        List<String> breakStatementBlock = new LinkedList<String>();
+        breakStatementBlock.add(currentEndWhileLabel.toString());
+        return new LinkedList<String>();
+    }
 
     @Override
-    public List<String> visit(Continue continueStatement, RegisterFactory factory) throws Exception { return null; }
+    public List<String> visit(Continue continueStatement, List<String> targetRegisters) throws Exception {
+        List<String> continueStatementBlock = new LinkedList<String>();
+        continueStatementBlock.add(currentWhileLabel.toString());
+        return new LinkedList<String>();
+    }
 
     @Override
-    public List<String> visit(StatementsBlock statementsBlock, RegisterFactory factory) throws Exception {
-        List<String> statementBlockLirLineList = new LinkedList<String>();
+    public List<String> visit(StatementsBlock statementsBlock, List<String> targetRegisters) throws Exception {
+        List<String> statementBlockBlock = new LinkedList<String>();
         for (Statement statement : statementsBlock.getStatements()) {
-            statementBlockLirLineList.addAll(statement.accept(this, factory));
+            List<String> statementTR = statement.accept(this, null);
+            statementBlockBlock.addAll(statementTR);
         }
-        return statementBlockLirLineList;
+        return statementBlockBlock;
     }
 
     @Override
@@ -553,7 +555,6 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         return unaryOpBlock;
     }
 
-    //fixed 0901 TODO: null is indeed == 0?
     @Override
     public List<String> visit(Literal literal, List<String> targetRegisters) throws Exception {
         String value = null;
