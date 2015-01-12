@@ -1,9 +1,11 @@
 package IC.lir;
 
+import IC.BinaryOps;
 import IC.AST.*;
 import IC.AST.Return;
 import IC.AST.StaticCall;
 import IC.AST.VirtualCall;
+import IC.Types.ClassTypeEntry;
 import IC.lir.Instructions.*;
 
 import java.util.ArrayList;
@@ -13,7 +15,9 @@ import java.util.Map;
 import java.util.Stack;
 
 public class LirTranslator implements PropagatingVisitor<List<String>,List<String>> {
-
+	
+	public static final String VAL_OPTMZ = "";
+	
     private String currentClass;
     private Label currentWhileLabel;
     private Label currentEndWhileLabel;
@@ -103,6 +107,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         
         Expression assignExpr = assignment.getAssignment();
         List<String> assignRegs = new ArrayList<String>();
+        assignRegs.add(LirTranslator.VAL_OPTMZ);
         List<String> assignTR = assignExpr.accept(this, assignRegs);
 
         Location location = assignment.getVariable();
@@ -317,27 +322,95 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     }
 
     @Override
-    public List<String> visit(VariableLocation location, RegisterFactory factory) throws Exception {
+    public List<String> visit(VariableLocation location, List<String> target) throws Exception {
+    	location.setAndGetRegWeight();
         List<String> variableLocationLirLineList = new LinkedList<String>();
         if (!location.isExternal()) {
-            String register = factory.allocateRegister();
-            variableLocationLirLineList.add(new BinaryInstruction(LirBinaryOps.MOVE, location.getName(), register));
-            factory.setTargetRegister(register);
+            if (!target.isEmpty() && target.get(0).equals(VAL_OPTMZ))
+            	target.remove(0);
+            target.add(location.getName());
         }
         else {
-            //TODO: complete
-            variableLocationLirLineList.addAll(location.getLocation().accept(this, factory));
+            List<String> baseRegs = new ArrayList<String>();
+            baseRegs.add(VAL_OPTMZ);
+            Expression baseExpr = location.getLocation();
+            List<String> baseLirInstructions = baseExpr.accept(this, baseRegs);
+            
+            //baseRegs contains memory/reg, both cases had to return target in this form {regX, offset} / {RegX}
+            variableLocationLirLineList.addAll(baseLirInstructions);
+            String exprOp = baseRegs.get(0);
+            if (!CompileTimeData.isRegName(exprOp)) // memory
+            {
+            	String exprReg = RegisterFactory.allocateRegister();
+                BinaryInstruction getMem = new BinaryInstruction(LirBinaryOps.MOVE, exprOp, exprReg);
+                variableLocationLirLineList.add(getMem.toString());
+                exprOp = exprReg;
+            }
+            // exprReg == Reg with expr
+            
+            // need to calculate the offset
+            String className = ((ClassTypeEntry)baseExpr.getAssignedType()).getName();
+            ClassLayout classLayout = CompileTimeData.getClassLayout(className);
+            int offset = classLayout.getFieldOffset(location.getName());
+            String offsetStr = String.valueOf(offset);
+            // VAL_OPTMZ
+            if (!target.isEmpty() && target.get(0).equals(VAL_OPTMZ))
+            {
+            	target.remove(0);
+            	BinaryInstruction optmz = new BinaryInstruction(LirBinaryOps.MOVEFIELD, exprOp + "." + offsetStr, exprOp);
+            	variableLocationLirLineList.add(optmz.toString());
+            	target.add(exprOp);
+            }
+            else
+            {
+            	target.add(exprOp);
+            	target.add(offsetStr);
+            }
         }
         return variableLocationLirLineList;
     }
 
     @Override
-    public List<String> visit(ArrayLocation location, RegisterFactory factory) throws Exception {
-        //TR[e1[e2]]
-        //  R1:=TR[e1]
-        //  R2:=TR[e2]
-        //  MoveArray R1[R2],R3
+    public List<String> visit(ArrayLocation location, List<String> target) throws Exception {
+        // expr[reg], or expr[immediate]
+    	location.setAndGetRegWeight();
         List<String> arrayLocationLirLineList = new LinkedList<String>();
+        
+        List<String> arrayRegs = new ArrayList<String>();
+        arrayRegs.add(VAL_OPTMZ);
+        Expression arrayExpr = location.getArray();
+        List<String> arrayLirInstructions = arrayExpr.accept(this, arrayRegs);
+        arrayLocationLirLineList.addAll(arrayLirInstructions);
+        String arrayOp = arrayRegs.get(0);
+        
+        List<String> indexRegs = new ArrayList<String>();
+        indexRegs.add(VAL_OPTMZ);
+        Expression indexExpr = location.getIndex();
+        List<String> indexLirInstructions = indexExpr.accept(this, indexRegs);
+        arrayLocationLirLineList.addAll(indexLirInstructions);
+        String indexOp = indexRegs.get(0);
+        
+        if (!target.isEmpty() && target.get(0).equals(VAL_OPTMZ))
+        {
+        	target.remove(0);
+        	BinaryInstruction optmz = new BinaryInstruction(LirBinaryOps.MOVEARRAY, arrayOp + "[" + indexOp + "]", arrayOp);
+        	arrayLirInstructions.add(optmz.toString());
+        	target.add(arrayOp);
+        	
+        	if (CompileTimeData.isRegName(indexOp))
+        		RegisterFactory.freeRegister(indexOp);
+        }
+        else
+        {
+        	target.add(arrayOp);
+        	target.add(indexOp);
+        }
+        return arrayLirInstructions;
+        /*
+        //baseRegs contains memory/reg, both cases had to return target in this form {regX, offset} / {RegX}
+        variableLocationLirLineList.addAll(baseLirInstructions);
+        String exprOp = baseRegs.get(0);
+        
         factory.resetTargetRegisters();
         arrayLocationLirLineList.addAll(location.getArray().accept(this, factory));
         arrayLocationLirLineList.addAll(location.getIndex().accept(this, factory));
@@ -346,6 +419,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         arrayLocationLirLineList.add(new BinaryInstruction(LirBinaryOps.MOVEARRAY, register1 + "["+ register2 + "]", register1));
         factory.freeRegister();
         return arrayLocationLirLineList;
+        */
     }
 
     @Override
@@ -387,6 +461,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         List<String> lengthBlock = new LinkedList<String>();
         Expression arrayExpression = length.getArray();
         List<String> arrayExpressionRegisters = new LinkedList<String>();
+        arrayExpressionRegisters.add(VAL_OPTMZ);
         List<String> arrayExpressionTR = arrayExpression.accept(this, arrayExpressionRegisters); //add ArrayLocation hack
         lengthBlock.addAll(arrayExpressionTR);
         String targetRegister = RegisterFactory.allocateRegister();
@@ -397,34 +472,208 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     }
 
     @Override
-    public List<String> visit(MathBinaryOp binaryOp, RegisterFactory factory) throws Exception {
-        /*
-            TR[e1 OP e2]:
-                R1:=TR[e1]
-                R2:=TR[e2]
-                R3:=R1 OP R2
-         */
+    public List<String> visit(MathBinaryOp binaryOp, List<String> target) throws Exception {
+    	
+    	/* should be in a setAndGet of MathBinaryOp... */
+    	
+    	if (!target.isEmpty() && target.get(0).equals(VAL_OPTMZ))
+    		target.remove(0);
+    	Expression leftOperator = binaryOp.getFirstOperand();
+    	Expression rightOperator = binaryOp.getSecondOperand();
+    	int leftWeight = leftOperator.setAndGetRegWeight();
+    	int rightWeight = rightOperator.setAndGetRegWeight();
+    	/* should be in a setAndGet of MathBinaryOp... */
+
         List<String> binaryOpLirLineList = new LinkedList<String>();
-        binaryOpLirLineList.addAll(binaryOp.getFirstOperand().accept(this, factory));
-        binaryOpLirLineList.addAll(binaryOp.getSecondOperand().accept(this, factory));
-        switch (binaryOp.getOperator()) {
-            case PLUS:
-                binaryOpLirLineList.add(new BinaryInstruction(LirBinaryOps.ADD, factory.getTargetRegister2(), factory.getTargetRegister1()));
-                break;
-            case MINUS:
-                binaryOpLirLineList.add(new BinaryInstruction(LirBinaryOps.SUB, factory.getTargetRegister2(), factory.getTargetRegister1()));
-                break;
-            case MULTIPLY:
-                binaryOpLirLineList.add(new BinaryInstruction(LirBinaryOps.MUL, factory.getTargetRegister2(), factory.getTargetRegister1()));
-                break;
-            case DIVIDE:
-                binaryOpLirLineList.add(new BinaryInstruction(LirBinaryOps.DIV, factory.getTargetRegister2(), factory.getTargetRegister1()));
-                break;
-            case MOD:
-                binaryOpLirLineList.add(new BinaryInstruction(LirBinaryOps.MOD, factory.getTargetRegister2(), factory.getTargetRegister1()));
-                break;
+        List<String> leftOpInstructions;
+        List<String> rightOpInstructions;
+        
+        List<String> leftOpRegs = new ArrayList<String>();
+        List<String> rightOpRegs = new ArrayList<String>();
+        
+        leftOpRegs.add(VAL_OPTMZ);
+        rightOpRegs.add(VAL_OPTMZ);
+        
+        // no side effects!
+        if (binaryOp.setAndGetRegWeight() != -1)
+        {
+        	if (rightOperator.setAndGetRegWeight() > leftOperator.setAndGetRegWeight())
+        	{
+        		rightOpInstructions = rightOperator.accept(this, rightOpRegs);
+        		// r_weight > l_weight => r_weight >=1 => register exist!
+        		binaryOpLirLineList.addAll(rightOpInstructions);
+        		String reg = rightOpRegs.get(0);
+        		leftOpInstructions = leftOperator.accept(this, leftOpRegs);
+        		binaryOpLirLineList.addAll(leftOpInstructions);
+        		// leftOpRegs contains memory/immediate
+        		String leftOp = leftOpRegs.get(0);
+        		
+        		BinaryInstruction inst;
+        		switch (binaryOp.getOperator()) {
+				case DIVIDE:
+					String temp = RegisterFactory.allocateRegister();
+	                BinaryInstruction getMem = new BinaryInstruction(LirBinaryOps.MOVE, leftOp, temp);
+	                binaryOpLirLineList.add(getMem.toString());
+					inst = new BinaryInstruction(LirBinaryOps.DIV, reg, temp);
+					binaryOpLirLineList.add(inst.toString());
+					BinaryInstruction optmz = new BinaryInstruction(LirBinaryOps.MOVE, temp, reg);
+					binaryOpLirLineList.add(optmz.toString());
+					RegisterFactory.freeRegister(temp);
+					target.add(reg);
+					break;
+				case MINUS:
+					String temp2 = RegisterFactory.allocateRegister();
+	                BinaryInstruction getMem2 = new BinaryInstruction(LirBinaryOps.MOVE, leftOp, temp2);
+	                binaryOpLirLineList.add(getMem2.toString());
+					inst = new BinaryInstruction(LirBinaryOps.SUB, reg, temp2);
+					binaryOpLirLineList.add(inst.toString());
+					BinaryInstruction optmz2 = new BinaryInstruction(LirBinaryOps.MOVE, temp2, reg);
+					binaryOpLirLineList.add(optmz2.toString());
+					RegisterFactory.freeRegister(temp2);
+					target.add(reg);
+					break;
+				case MOD:
+					String temp3 = RegisterFactory.allocateRegister();
+	                BinaryInstruction getMem3 = new BinaryInstruction(LirBinaryOps.MOVE, leftOp, temp3);
+	                binaryOpLirLineList.add(getMem3.toString());
+					inst = new BinaryInstruction(LirBinaryOps.MOD, reg, temp3);
+					binaryOpLirLineList.add(inst.toString());
+					BinaryInstruction optmz3 = new BinaryInstruction(LirBinaryOps.MOVE, temp3, reg);
+					binaryOpLirLineList.add(optmz3.toString());
+					RegisterFactory.freeRegister(temp3);
+					target.add(reg);
+					break;
+				case MULTIPLY:
+					inst = new BinaryInstruction(LirBinaryOps.MUL, leftOp, reg);
+					binaryOpLirLineList.add(inst.toString());
+					target.add(reg);
+					break;
+				case PLUS:
+					inst = new BinaryInstruction(LirBinaryOps.ADD, leftOp, reg);
+					binaryOpLirLineList.add(inst.toString());
+					target.add(reg);
+					break;
+				default:
+					break;
+				}
+        	}
         }
-        factory.freeRegister();
+        else // have side effects OR left heavier or same than "random"  => left is first
+    	{
+        	leftOpInstructions = leftOperator.accept(this, leftOpRegs);
+    		binaryOpLirLineList.addAll(leftOpInstructions);
+    		String leftOp = leftOpRegs.get(0);
+    		
+    		rightOpInstructions = rightOperator.accept(this, rightOpRegs);
+    		binaryOpLirLineList.addAll(rightOpInstructions);
+    		String rightOp = rightOpRegs.get(0);
+    		
+    		BinaryInstruction inst;
+    		switch (binaryOp.getOperator()) {
+			case DIVIDE:
+				if (CompileTimeData.isImmediate(rightOp) && CompileTimeData.isImmediate(leftOp))
+				{
+					String result = String.valueOf(Integer.parseInt(leftOp) / Integer.parseInt(rightOp));
+					target.add(result);
+				}
+				else
+				{
+					if (!CompileTimeData.isRegName(leftOp))
+					{
+						String reg = RegisterFactory.allocateRegister();
+						BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, leftOp, reg);
+						binaryOpLirLineList.add(mem2reg.toString());
+						leftOp = reg;
+					}
+					inst = new BinaryInstruction(LirBinaryOps.DIV, rightOp, leftOp);
+					binaryOpLirLineList.add(inst.toString());
+					target.add(leftOp);
+				}
+				break;
+			case MOD:
+				if (CompileTimeData.isImmediate(rightOp) && CompileTimeData.isImmediate(leftOp))
+				{
+					String result = String.valueOf(Integer.parseInt(leftOp) % Integer.parseInt(rightOp));
+					target.add(result);
+				}
+				else
+				{
+					if (!CompileTimeData.isRegName(leftOp))
+					{
+						String reg = RegisterFactory.allocateRegister();
+						BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, leftOp, reg);
+						binaryOpLirLineList.add(mem2reg.toString());
+						leftOp = reg;
+					}
+					inst = new BinaryInstruction(LirBinaryOps.MOD, rightOp, leftOp);
+					binaryOpLirLineList.add(inst.toString());
+					target.add(leftOp);
+				}
+				break;
+			case MULTIPLY:
+				if (CompileTimeData.isImmediate(rightOp) && CompileTimeData.isImmediate(leftOp))
+				{
+					String result = String.valueOf(Integer.parseInt(leftOp) * Integer.parseInt(rightOp));
+					target.add(result);
+				}
+				else
+				{
+					if (!CompileTimeData.isRegName(leftOp))
+					{
+						String reg = RegisterFactory.allocateRegister();
+						BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, leftOp, reg);
+						binaryOpLirLineList.add(mem2reg.toString());
+						leftOp = reg;
+					}
+					inst = new BinaryInstruction(LirBinaryOps.MUL, rightOp, leftOp);
+					binaryOpLirLineList.add(inst.toString());
+					target.add(leftOp);
+				}
+				break;
+			case MINUS:
+				if (CompileTimeData.isImmediate(rightOp) && CompileTimeData.isImmediate(leftOp))
+				{
+					String result = String.valueOf(Integer.parseInt(leftOp) - Integer.parseInt(rightOp));
+					target.add(result);
+				}
+				else
+				{
+					if (!CompileTimeData.isRegName(leftOp))
+					{
+						String reg = RegisterFactory.allocateRegister();
+						BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, leftOp, reg);
+						binaryOpLirLineList.add(mem2reg.toString());
+						leftOp = reg;
+					}
+					inst = new BinaryInstruction(LirBinaryOps.SUB, rightOp, leftOp);
+					binaryOpLirLineList.add(inst.toString());
+					target.add(leftOp);
+				}
+				break;
+			case PLUS:
+				if (CompileTimeData.isImmediate(rightOp) && CompileTimeData.isImmediate(leftOp))
+				{
+					String result = String.valueOf(Integer.parseInt(leftOp) + Integer.parseInt(rightOp));
+					target.add(result);
+				}
+				else
+				{
+					if (!CompileTimeData.isRegName(leftOp))
+					{
+						String reg = RegisterFactory.allocateRegister();
+						BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, leftOp, reg);
+						binaryOpLirLineList.add(mem2reg.toString());
+						leftOp = reg;
+					}
+					inst = new BinaryInstruction(LirBinaryOps.ADD, rightOp, leftOp);
+					binaryOpLirLineList.add(inst.toString());
+					target.add(leftOp);
+				}
+				break;
+			default:
+				break;
+			}
+    	}
         return binaryOpLirLineList;
     }
 
