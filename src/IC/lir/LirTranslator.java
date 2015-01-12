@@ -215,18 +215,32 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     public List<String> visit(CallStatement callStatement, RegisterFactory factory) throws Exception { return null; }
 
     @Override
-    public List<String> visit(Return returnStatement, RegisterFactory factory) throws Exception { return null; }
+    public List<String> visit(Return returnStatement, List<String> targetRegisters) throws Exception {
+        List<String> returnStatementBlock = new LinkedList<String>();
+        if (returnStatement.hasValue()) {
+            Expression returnValue = returnStatement.getValue();
+            List<String> returnStatementRegisters = new LinkedList<String>(); //add hack?
+            List<String> returnValueTR = returnValue.accept(this, returnStatementRegisters);
+            returnStatementBlock.addAll(returnValueTR);
+            UnaryInstruction returnInstruction = new UnaryInstruction(LirUnaryOps.RETURN, returnStatementRegisters.get(0));
+            returnStatementBlock.add(returnInstruction.toString());
+        }
+        else {
+            UnaryInstruction returnInstruction = new UnaryInstruction(LirUnaryOps.RETURN, "9999");
+            returnStatementBlock.add(returnInstruction.toString());
+        }
+    }
 
     @Override
     public List<String> visit(If ifStatement, List<String> targetRegisters) throws Exception {
         List<String> ifStatementBlock = new LinkedList<String>();
         Expression condition = ifStatement.getCondition();
-        List<String> conditionRegisters = new LinkedList<String>();
+        List<String> conditionRegisters = new LinkedList<String>(); //add hack?
         List<String> conditionTR = condition.accept(this, conditionRegisters);
         ifStatementBlock.addAll(conditionTR);
-        BinaryInstruction checkCondition = new BinaryInstruction(LirBinaryOps.COMPARE, conditionRegisters.get(0), "0");
+        BinaryInstruction checkCondition = new BinaryInstruction(LirBinaryOps.COMPARE, "0", conditionRegisters.get(0));
         ifStatementBlock.add(checkCondition.toString());
-        RegisterFactory.freeRegister(conditionRegisters.get(0)); //is it okay here?
+        RegisterFactory.freeRegister(conditionRegisters.get(0));
 
         Label endLabel = new Label("_end_if_label_" + ifStatement.getLine());
         Statement operation = ifStatement.getOperation();
@@ -265,13 +279,12 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         whileStatementBlock.add(currentWhileLabel.toString());
 
         Expression condition = whileStatement.getCondition();
-        List<String> conditionRegisters = new LinkedList<String>();
+        List<String> conditionRegisters = new LinkedList<String>(); //add hack?
         List<String> conditionTR = condition.accept(this, conditionRegisters);
         whileStatementBlock.addAll(conditionTR);
 
-        BinaryInstruction checkCondition = new BinaryInstruction(LirBinaryOps.COMPARE, conditionRegisters.get(0), "0");
+        BinaryInstruction checkCondition = new BinaryInstruction(LirBinaryOps.COMPARE, "0", conditionRegisters.get(0));
         whileStatementBlock.add(checkCondition.toString());
-        RegisterFactory.freeRegister(conditionRegisters.get(0)); //is it okay here?
         UnaryInstruction falseCondition = new UnaryInstruction(LirUnaryOps.JUMPTRUE, currentEndWhileLabel);
         whileStatementBlock.add(falseCondition.toString());
         Statement operation = whileStatement.getOperation();
@@ -280,6 +293,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         UnaryInstruction startOver = new UnaryInstruction(LirUnaryOps.JUMP, currentWhileLabel);
         whileStatementBlock.add(startOver.toString());
         whileStatementBlock.add(currentEndWhileLabel.toString());
+        RegisterFactory.freeRegister(conditionRegisters.get(0));
         return whileStatementBlock;
     }
 
@@ -431,29 +445,47 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     public List<String> visit(VirtualCall call, RegisterFactory factory) throws Exception { return null; }
 
     @Override
-    public List<String> visit(This thisExpression, RegisterFactory factory) throws Exception { return null; }
-
-    @Override
-    public List<String> visit(NewClass newClass, RegisterFactory factory) throws Exception {
-        List<String> newClassLirLineList = new LinkedList<String>();
-        int objectSize = classLayouts.get(newClass.getName()).getFieldToOffsetSize() + 1;
-        objectSize *= 4;
-        String register = factory.allocateRegister();
-        newClassLirLineList.add(new BinaryInstruction(LirBinaryOps.LIBRARY, "__alocateObject(" + objectSize + ")", register));
-        factory.setTargetRegister(register);
-        newClassLirLineList.add(new BinaryInstruction(LirBinaryOps.MOVEFIELD, "_" + newClass.getName() + "_DV", register + ".0"));
-        return newClassLirLineList;
+    public List<String> visit(This thisExpression, List<String> targetRegisters) throws Exception {
+        targetRegisters.add("this"); //that's it???
     }
 
     @Override
-    public List<String> visit(NewArray newArray, RegisterFactory factory) throws Exception {
-        List<String> newArrayLirLineList = new LinkedList<String>();
-        newArrayLirLineList.addAll(newArray.getSize().accept(this, factory));
-        String sizeRegister = factory.getTargetRegister1();
-        newArrayLirLineList.add((new BinaryInstruction(LirBinaryOps.LIBRARY, "__allocateArray(" + sizeRegister + ")", sizeRegister)));
-        factory.resetTargetRegisters();
-        factory.setTargetRegister(sizeRegister);
-        return newArrayLirLineList;
+    public List<String> visit(NewClass newClass, List<String> targetRegisters) throws Exception {
+        List<String> newClassBlock = new LinkedList<String>();
+        int objectSize = CompileTimeData.getClassLayout(newClass.getName()).getFieldToOffsetSize() + 1;
+        objectSize *= 4;
+        String targetRegister = RegisterFactory.allocateRegister();
+        BinaryInstruction allocateObject = new BinaryInstruction(LirBinaryOps.LIBRARY, "__alocateObject(" + objectSize + ")", targetRegister);
+        newClassBlock.add(allocateObject.toString());
+        BinaryInstruction addDVPTR = new BinaryInstruction(LirBinaryOps.MOVEFIELD, "_DV_" + newClass.getName(), targetRegister + ".0");
+        newClassBlock.add(addDVPTR.toString());
+        targetRegisters.add(targetRegister);
+        return newClassBlock;
+    }
+
+    @Override
+    public List<String> visit(NewArray newArray, List<String> targetRegisters) throws Exception {
+        List<String> newArrayBlock = new LinkedList<String>();
+        Expression sizeExpression = newArray.getSize();
+        List<String> sizeExpressionRegisters = new LinkedList<String>();
+        List<String> sizeExpressionTR = sizeExpression.accept(this, sizeExpressionRegisters); //add hack?
+        newArrayBlock.addAll(sizeExpressionTR);
+        String sizeRegister = sizeExpressionRegisters.get(0);
+        BinaryInstruction allocateArray;
+
+        if (CompileTimeData.isRegName(sizeRegister)) {
+            allocateArray =  new BinaryInstruction(LirBinaryOps.LIBRARY, "__allocateArray(" + sizeRegister + ")", sizeRegister); //is it okay to use the same register to store the result?
+            newArrayBlock.add(allocateArray.toString());
+            targetRegisters.add(sizeRegister);
+        }
+        else if (CompileTimeData.isMemory(sizeRegister) || CompileTimeData.isImmediate(sizeRegister)) {
+            String targetRegister = RegisterFactory.allocateRegister();
+            allocateArray =  new BinaryInstruction(LirBinaryOps.LIBRARY, "__allocateArray(" + sizeRegister + ")", targetRegister);
+            newArrayBlock.add(allocateArray.toString());
+            targetRegisters.add(targetRegister);
+        }
+
+        return newArrayBlock;
     }
 
     @Override
@@ -461,13 +493,17 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         List<String> lengthBlock = new LinkedList<String>();
         Expression arrayExpression = length.getArray();
         List<String> arrayExpressionRegisters = new LinkedList<String>();
+<<<<<<< HEAD
         arrayExpressionRegisters.add(VAL_OPTMZ);
         List<String> arrayExpressionTR = arrayExpression.accept(this, arrayExpressionRegisters); //add ArrayLocation hack
+=======
+        List<String> arrayExpressionTR = arrayExpression.accept(this, arrayExpressionRegisters); //add ArrayLocation hack?
+>>>>>>> 42a0752fe20666d5cc5199638f3995456a0e2ad7
         lengthBlock.addAll(arrayExpressionTR);
-        String targetRegister = RegisterFactory.allocateRegister();
-        BinaryInstruction lengthInstruction = new BinaryInstruction(LirBinaryOps.ARRAYLENGTH, arrayExpressionRegisters.get(0), targetRegister);
+        String arrayAndTargetRegister = arrayExpressionRegisters.get(0);
+        BinaryInstruction lengthInstruction = new BinaryInstruction(LirBinaryOps.ARRAYLENGTH, arrayAndTargetRegister, arrayAndTargetRegister); //is it okay to use the same register to store the result?
         lengthBlock.add(lengthInstruction.toString());
-        targetRegisters.add(targetRegister);
+        targetRegisters.add(arrayAndTargetRegister);
         return lengthBlock;
     }
 
