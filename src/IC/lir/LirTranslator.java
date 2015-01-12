@@ -1,6 +1,5 @@
 package IC.lir;
 
-import IC.BinaryOps;
 import IC.AST.*;
 import IC.AST.Return;
 import IC.AST.StaticCall;
@@ -11,8 +10,6 @@ import IC.lir.Instructions.*;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.Stack;
 
 public class LirTranslator implements PropagatingVisitor<List<String>,List<String>> {
 	
@@ -212,7 +209,14 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     }
 
     @Override
-    public List<String> visit(CallStatement callStatement, RegisterFactory factory) throws Exception { return null; }
+    public List<String> visit(CallStatement callStatement, List<String> targetRegisters) throws Exception {
+        List<String> callStatementBlock = new LinkedList<String>();
+        Call call = callStatement.getCall();
+        List<String> callRegisters = new LinkedList<String>();
+        List<String> callStatementTR = call.accept(this, callRegisters);
+        callStatementBlock.addAll(callStatementTR);
+        return callStatementBlock;
+    }
 
     @Override
     public List<String> visit(Return returnStatement, List<String> targetRegisters) throws Exception {
@@ -229,6 +233,8 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
             UnaryInstruction returnInstruction = new UnaryInstruction(LirUnaryOps.RETURN, "9999");
             returnStatementBlock.add(returnInstruction.toString());
         }
+
+        return returnStatementBlock;
     }
 
     @Override
@@ -322,17 +328,30 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     }
 
     @Override
-    public List<String> visit(LocalVariable localVariable, RegisterFactory factory) throws Exception {
-        List<String> localVariableLirLineList = new LinkedList<String>();
+    public List<String> visit(LocalVariable localVariable, List<String> targetRegisters) throws Exception {
+        List<String> localVariableBlock = new LinkedList<String>();
         if (localVariable.hasInitValue()) {
-            localVariableLirLineList.addAll(localVariable.getInitValue().accept(this, factory));
-            localVariableLirLineList.add(new BinaryInstruction(LirBinaryOps.MOVE, factory.getTargetRegister1(), localVariable.getName()));
-            factory.freeRegister();
+            Expression initValue = localVariable.getInitValue();
+            List<String> initValueRegisters = new LinkedList<String>();
+            List<String> initValueTR = initValue.accept(this, initValueRegisters);
+            localVariableBlock.addAll(initValueTR);
+            String value = initValueRegisters.get(0);
+            BinaryInstruction initializeVar;
+            if (!CompileTimeData.isMemory(value)) {
+                initializeVar = new BinaryInstruction(LirBinaryOps.MOVE, value, localVariable.getName());
+                if (CompileTimeData.isRegName(value)) {
+                    RegisterFactory.freeRegister(value);
+                }
+            } else {
+                String tempRegister = RegisterFactory.allocateRegister();
+                BinaryInstruction memToTemp = new BinaryInstruction(LirBinaryOps.MOVE, value, tempRegister);
+                localVariableBlock.add(memToTemp.toString());
+                initializeVar = new BinaryInstruction(LirBinaryOps.MOVE, tempRegister, localVariable.getName());
+                RegisterFactory.freeRegister(tempRegister);
+            }
+            localVariableBlock.add(initializeVar.toString());
         }
-        else {
-            //do something???
-        }
-        return localVariableLirLineList;
+        return localVariableBlock;
     }
 
     @Override
@@ -447,6 +466,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     @Override
     public List<String> visit(This thisExpression, List<String> targetRegisters) throws Exception {
         targetRegisters.add("this"); //that's it???
+        return new LinkedList<String>();
     }
 
     @Override
@@ -493,12 +513,8 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         List<String> lengthBlock = new LinkedList<String>();
         Expression arrayExpression = length.getArray();
         List<String> arrayExpressionRegisters = new LinkedList<String>();
-<<<<<<< HEAD
         arrayExpressionRegisters.add(VAL_OPTMZ);
-        List<String> arrayExpressionTR = arrayExpression.accept(this, arrayExpressionRegisters); //add ArrayLocation hack
-=======
         List<String> arrayExpressionTR = arrayExpression.accept(this, arrayExpressionRegisters); //add ArrayLocation hack?
->>>>>>> 42a0752fe20666d5cc5199638f3995456a0e2ad7
         lengthBlock.addAll(arrayExpressionTR);
         String arrayAndTargetRegister = arrayExpressionRegisters.get(0);
         BinaryInstruction lengthInstruction = new BinaryInstruction(LirBinaryOps.ARRAYLENGTH, arrayAndTargetRegister, arrayAndTargetRegister); //is it okay to use the same register to store the result?
