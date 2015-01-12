@@ -214,10 +214,16 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         List<String> returnStatementBlock = new LinkedList<String>();
         if (returnStatement.hasValue()) {
             Expression returnValue = returnStatement.getValue();
+            List<String> returnStatementRegisters = new LinkedList<String>(); //add hack?
+            List<String> returnValueTR = returnValue.accept(this, returnStatementRegisters);
+            returnStatementBlock.addAll(returnValueTR);
+            UnaryInstruction returnInstruction = new UnaryInstruction(LirUnaryOps.RETURN, returnStatementRegisters.get(0));
+            returnStatementBlock.add(returnInstruction.toString());
         }
-
-        List<String> returnStatementRegisters = new LinkedList<String>();
-        UnaryInstruction returnInstruction = new UnaryInstruction(LirUnaryOps.RETURN, )
+        else {
+            UnaryInstruction returnInstruction = new UnaryInstruction(LirUnaryOps.RETURN, "9999");
+            returnStatementBlock.add(returnInstruction.toString());
+        }
     }
 
     @Override
