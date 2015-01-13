@@ -309,14 +309,14 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     public List<String> visit(Break breakStatement, List<String> targetRegisters) throws Exception {
         List<String> breakStatementBlock = new LinkedList<String>();
         breakStatementBlock.add(currentEndWhileLabel.toString());
-        return new LinkedList<String>();
+        return breakStatementBlock;
     }
 
     @Override
     public List<String> visit(Continue continueStatement, List<String> targetRegisters) throws Exception {
         List<String> continueStatementBlock = new LinkedList<String>();
         continueStatementBlock.add(currentWhileLabel.toString());
-        return new LinkedList<String>();
+        return continueStatementBlock;
     }
 
     @Override
@@ -546,8 +546,8 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     public List<String> visit(VirtualCall call, List<String> targetRegisters) throws Exception {
         List<String> callBlock = new LinkedList<String>();
 
-        String instanceRegister = null;
-        BinaryInstruction initializeInstanceRegister = null;
+        String instanceRegister;
+        BinaryInstruction initializeInstanceRegister;
         int methodOffset;
         String methodName = call.getName();
         
@@ -564,6 +564,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
             else {
                 instanceRegister = RegisterFactory.allocateRegister();
                 initializeInstanceRegister = new BinaryInstruction(LirBinaryOps.MOVE, targetlocationTR, instanceRegister);
+                callBlock.add(initializeInstanceRegister.toString());
             }
             
             // offset
@@ -572,7 +573,9 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
             methodOffset = CompileTimeData.getClassLayout(className).getMethodOffset(methodName);
         }
         else {
+            instanceRegister = RegisterFactory.allocateRegister();
             initializeInstanceRegister = new BinaryInstruction(LirBinaryOps.MOVE, "this", instanceRegister);
+            callBlock.add(initializeInstanceRegister.toString());
             
             // find the lowest enclosing scope that is also a classDecl
             SymbolTable currentScope = call.getEnclosingScope();
@@ -586,8 +589,6 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     		}
             methodOffset = CompileTimeData.getClassLayout(className).getMethodOffset(methodName);
         }
-        
-        callBlock.add(initializeInstanceRegister.toString());
 
         /*int offset = CompileTimeData.getClassLayout(...);*/
         String lirCall = instanceRegister + "." + methodOffset + "(";
@@ -892,7 +893,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     }
 
     @Override
-    public List<String> visit(LogicalBinaryOp binaryOp, RegisterFactory factory) throws Exception {
+    public List<String> visit(LogicalBinaryOp binaryOp, List<String> target) throws Exception {
         List<String> binaryOpLirLineList = new LinkedList<String>();
         binaryOpLirLineList.addAll(binaryOp.getFirstOperand().accept(this, factory));
         binaryOpLirLineList.addAll(binaryOp.getSecondOperand().accept(this, factory));
