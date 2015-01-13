@@ -290,7 +290,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         List<String> conditionTR = condition.accept(this, conditionRegisters);
         whileStatementBlock.addAll(conditionTR);
 
-        BinaryInstruction checkCondition = new BinaryInstruction(LirBinaryOps.COMPARE, "0", conditionRegisters.get(0));
+           BinaryInstruction checkCondition = new BinaryInstruction(LirBinaryOps.COMPARE, "0", conditionRegisters.get(0));
         whileStatementBlock.add(checkCondition.toString());
         UnaryInstruction falseCondition = new UnaryInstruction(LirUnaryOps.JUMPTRUE, currentEndWhileLabel);
         whileStatementBlock.add(falseCondition.toString());
@@ -428,12 +428,16 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         if (!target.isEmpty() && target.get(0).equals(VAL_OPTMZ))
         {
         	target.remove(0);
-        	BinaryInstruction optmz = new BinaryInstruction(LirBinaryOps.MOVEARRAY, arrayOp + "[" + indexOp + "]", arrayOp);
+            String targetReg;
+            if (CompileTimeData.isRegName(indexOp)) {
+                targetReg = indexOp;
+            }
+            else {
+                targetReg = RegisterFactory.allocateRegister();
+            }
+        	BinaryInstruction optmz = new BinaryInstruction(LirBinaryOps.MOVEARRAY, arrayOp + "[" + indexOp + "]", targetReg);
             arrayLocationLirLineList.add(optmz.toString());
-        	target.add(arrayOp);
-        	
-        	if (CompileTimeData.isRegName(indexOp))
-        		RegisterFactory.freeRegister(indexOp);
+        	target.add(targetReg);
         }
         else
         {
