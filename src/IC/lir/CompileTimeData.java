@@ -66,7 +66,7 @@ public class CompileTimeData {
 	
 	public static boolean isMemory(String candidate)
 	{
-		return ( isRegName(candidate) || isImmediate(candidate) )
+		return ( isRegName(candidate) || isImmediate(candidate) );
 	}
 	public static List<String> getStringLiterals()
 	{

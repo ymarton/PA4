@@ -4,10 +4,12 @@ import IC.AST.*;
 import IC.AST.Return;
 import IC.AST.StaticCall;
 import IC.AST.VirtualCall;
+import IC.Semantic.ScopeChecker;
 import IC.Types.ClassTypeEntry;
 import IC.lir.Instructions.*;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -66,8 +68,6 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 
     @Override
     public List<String> visit(VirtualMethod method, List<String> target) throws Exception {
-        //TODO: set all arguments to new registers and somehow pass that information
-        //on second thought, is it done automatically on each statement?
         List<String> methodInstructions = new LinkedList<String>();
         for (Statement statement : method.getStatements()) {
         	methodInstructions.addAll(statement.accept(this, null));
@@ -77,8 +77,6 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 
     @Override
     public List<String> visit(StaticMethod method, List<String> target) throws Exception {
-        //TODO: set all arguments to new registers and somehow pass that information
-        //on second thought, is it done automatically on each statement?
         List<String> methodInstructions = new LinkedList<String>();
         for (Statement statement : method.getStatements()) {
         	methodInstructions.addAll(statement.accept(this, null));
@@ -212,8 +210,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     public List<String> visit(CallStatement callStatement, List<String> targetRegisters) throws Exception {
         List<String> callStatementBlock = new LinkedList<String>();
         Call call = callStatement.getCall();
-        List<String> callRegisters = new LinkedList<String>();
-        List<String> callStatementTR = call.accept(this, callRegisters);
+        List<String> callStatementTR = call.accept(this, null);
         callStatementBlock.addAll(callStatementTR);
         return callStatementBlock;
     }
@@ -223,7 +220,8 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         List<String> returnStatementBlock = new LinkedList<String>();
         if (returnStatement.hasValue()) {
             Expression returnValue = returnStatement.getValue();
-            List<String> returnStatementRegisters = new LinkedList<String>(); //add hack?
+            List<String> returnStatementRegisters = new LinkedList<String>();
+            returnStatementRegisters.add(VAL_OPTMZ);
             List<String> returnValueTR = returnValue.accept(this, returnStatementRegisters);
             returnStatementBlock.addAll(returnValueTR);
             UnaryInstruction returnInstruction = new UnaryInstruction(LirUnaryOps.RETURN, returnStatementRegisters.get(0));
@@ -333,6 +331,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         if (localVariable.hasInitValue()) {
             Expression initValue = localVariable.getInitValue();
             List<String> initValueRegisters = new LinkedList<String>();
+            initValueRegisters.add(VAL_OPTMZ);
             List<String> initValueTR = initValue.accept(this, initValueRegisters);
             localVariableBlock.addAll(initValueTR);
             String value = initValueRegisters.get(0);
@@ -456,12 +455,141 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     }
 
     @Override
-    public List<String> visit(StaticCall call, RegisterFactory factory) throws Exception {
-        return null;
+    public List<String> visit(StaticCall call, List<String> targetRegisters) throws Exception {
+        List<String> callBlock = new LinkedList<String>();
+        String lirCall;
+        List<String> argumentRegisters;
+        List<String> argumentTR;
+        List<String> registersToFree = new LinkedList<String>();
+        BinaryInstruction callInstruction;
+        String targetRegister;
+
+        if (call.getClassName().equals("Library")) {
+            lirCall = "__" + call.getName() + "(";
+            for (Expression argument : call.getArguments()) {
+                argumentRegisters = new LinkedList<String>();
+                argumentRegisters.add(VAL_OPTMZ);
+                argumentTR = argument.accept(this, argumentRegisters);
+                callBlock.addAll(argumentTR);
+                String argumentValue = argumentRegisters.get(0);
+                if (call.getArguments().indexOf(argument) == 0) {
+                    continue;
+                }
+                else {
+                    lirCall += ",";
+                }
+                lirCall += argumentValue;
+                if (CompileTimeData.isRegName(argumentValue)) {
+                    registersToFree.add(argumentValue);
+                }
+            }
+            lirCall += ")";
+            for (String register : registersToFree) {
+                RegisterFactory.freeRegister(register);
+            }
+            targetRegister = RegisterFactory.allocateRegister();
+            callInstruction = new BinaryInstruction(LirBinaryOps.LIBRARY, lirCall, targetRegister);
+        }
+
+        else {
+            lirCall = call.getClassName() + "_" + call.getName() + "(";
+            List<Formal> formals = getFormalsList(...);
+            Iterator<Formal> formalIterator = formals.iterator();
+            Iterator<Expression> argumentsIterator = call.getArguments().iterator();
+            while (formalIterator.hasNext()) {
+                String formalName = formalIterator.next().getName();
+                Expression argument = argumentsIterator.next();
+                argumentRegisters = new LinkedList<String>();
+                argumentRegisters.add(VAL_OPTMZ);
+                argumentTR = argument.accept(this, argumentRegisters);
+                callBlock.addAll(argumentTR);
+                String argumentValue = argumentRegisters.get(0);
+                if (call.getArguments().indexOf(argument) == 0) {
+                    continue;
+                } else {
+                    lirCall += ",";
+                }
+                lirCall += formalName + "=" + argumentValue;
+                if (CompileTimeData.isRegName(argumentValue)) {
+                    registersToFree.add(argumentValue);
+                }
+            }
+            lirCall += ")";
+            for (String register : registersToFree) {
+                RegisterFactory.freeRegister(register);
+            }
+            targetRegister = RegisterFactory.allocateRegister();
+            callInstruction = new BinaryInstruction(LirBinaryOps.STATICCALL, lirCall, targetRegister);
+        }
+
+        callBlock.add(callInstruction.toString());
+        targetRegisters.add(targetRegister);
+        return callBlock;
     }
 
     @Override
-    public List<String> visit(VirtualCall call, RegisterFactory factory) throws Exception { return null; }
+    public List<String> visit(VirtualCall call, List<String> targetRegisters) throws Exception {
+        List<String> callBlock = new LinkedList<String>();
+
+        String instanceRegister;
+        BinaryInstruction initializeInstanceRegister;
+        if (call.isExternal()) {
+            Expression location = call.getLocation();
+            List<String> locationRegisters = new LinkedList<String>();
+            locationRegisters.add(VAL_OPTMZ);
+            List<String> locationTR = location.accept(this, locationRegisters);
+            callBlock.addAll(locationTR);
+            String targetlocationTR = locationRegisters.get(0);
+            if (CompileTimeData.isRegName(targetlocationTR)) {
+                instanceRegister = targetlocationTR;
+            }
+            else {
+                instanceRegister = RegisterFactory.allocateRegister();
+                initializeInstanceRegister = new BinaryInstruction(LirBinaryOps.MOVE, targetlocationTR, instanceRegister);
+            }
+        }
+        else {
+            initializeInstanceRegister = new BinaryInstruction(LirBinaryOps.MOVE, "this", instanceRegister);
+        }
+        callBlock.add(initializeInstanceRegister.toString());
+
+        int offset = CompileTimeData.getClassLayout(...);
+        String lirCall = instanceRegister + "." + offset + "(";
+
+        List<String> argumentRegisters;
+        List<String> argumentTR;
+        List<String> registersToFree = new LinkedList<String>();
+        BinaryInstruction callInstruction;
+        String targetRegister;
+
+        for (Expression argument : call.getArguments()) {
+            argumentRegisters = new LinkedList<String>();
+            argumentRegisters.add(VAL_OPTMZ);
+            argumentTR = argument.accept(this, argumentRegisters);
+            callBlock.addAll(argumentTR);
+            String argumentValue = argumentRegisters.get(0);
+            if (call.getArguments().indexOf(argument) == 0) {
+                continue;
+            }
+            else {
+                lirCall += ",";
+            }
+            lirCall += argumentValue;
+            if (CompileTimeData.isRegName(argumentValue)) {
+                registersToFree.add(argumentValue);
+            }
+        }
+        lirCall += ")";
+        for (String register : registersToFree) {
+            RegisterFactory.freeRegister(register);
+        }
+        targetRegister = RegisterFactory.allocateRegister();
+        callInstruction = new BinaryInstruction(LirBinaryOps.VIRTUALCALL, lirCall, targetRegister);
+
+        callBlock.add(callInstruction.toString());
+        targetRegisters.add(targetRegister);
+        return callBlock;
+    }
 
     @Override
     public List<String> visit(This thisExpression, List<String> targetRegisters) throws Exception {
@@ -488,7 +616,8 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         List<String> newArrayBlock = new LinkedList<String>();
         Expression sizeExpression = newArray.getSize();
         List<String> sizeExpressionRegisters = new LinkedList<String>();
-        List<String> sizeExpressionTR = sizeExpression.accept(this, sizeExpressionRegisters); //add hack?
+        sizeExpressionRegisters.add(VAL_OPTMZ);
+        List<String> sizeExpressionTR = sizeExpression.accept(this, sizeExpressionRegisters);
         newArrayBlock.addAll(sizeExpressionTR);
         String sizeRegister = sizeExpressionRegisters.get(0);
         BinaryInstruction allocateArray;
@@ -514,7 +643,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         Expression arrayExpression = length.getArray();
         List<String> arrayExpressionRegisters = new LinkedList<String>();
         arrayExpressionRegisters.add(VAL_OPTMZ);
-        List<String> arrayExpressionTR = arrayExpression.accept(this, arrayExpressionRegisters); //add ArrayLocation hack?
+        List<String> arrayExpressionTR = arrayExpression.accept(this, arrayExpressionRegisters);
         lengthBlock.addAll(arrayExpressionTR);
         String arrayAndTargetRegister = arrayExpressionRegisters.get(0);
         BinaryInstruction lengthInstruction = new BinaryInstruction(LirBinaryOps.ARRAYLENGTH, arrayAndTargetRegister, arrayAndTargetRegister); //is it okay to use the same register to store the result?
@@ -799,6 +928,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         List<String> unaryOpBlock = new LinkedList<String>();
         Expression operandExpression = unaryOp.getOperand();
         List<String> operandRegisters = new ArrayList<String>();
+        operandRegisters.add(VAL_OPTMZ);
         List<String> unaryOpTR = operandExpression.accept(this, operandRegisters);
         unaryOpBlock.addAll(unaryOpTR);
         String targetOperandRegister = operandRegisters.get(0);

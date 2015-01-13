@@ -15,7 +15,9 @@ public enum LirBinaryOps {
     OR("Or"),
     XOR("Xor"),
     COMPARE("Compare"),
-    LIBRARY("Library");
+    LIBRARY("Library"),
+    STATICCALL("StaticCall"),
+    VIRTUALCALL("VirtualCall");
 
     private String description;
 
