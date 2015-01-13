@@ -5,6 +5,10 @@ import IC.AST.Return;
 import IC.AST.StaticCall;
 import IC.AST.VirtualCall;
 import IC.Semantic.ScopeChecker;
+import IC.Symbols.Kind;
+import IC.Symbols.Property;
+import IC.Symbols.Symbol;
+import IC.Symbols.SymbolTable;
 import IC.Types.ClassTypeEntry;
 import IC.lir.Instructions.*;
 
@@ -492,12 +496,23 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         }
 
         else {
-            lirCall = call.getClassName() + "_" + call.getName() + "(";
-            List<Formal> formals = getFormalsList(...);
-            Iterator<Formal> formalIterator = formals.iterator();
+        	String methodName = call.getName();
+        	String callingClass = call.getClassName();
+        	String declatingClass = CompileTimeData.getClassLayout(callingClass).getDeclaringMap().get(methodName);
+            lirCall = declatingClass + "_" + methodName + "(";
+            SymbolTable methodSymbolTable = SymbolTable.getTopTable().getSymbolByID(declatingClass).getSymTableRef().getSymbolByID(methodName).getSymTableRef();
+            List<String> formalNames = new LinkedList<String>();
+            for (Symbol symbol : methodSymbolTable.getSymbols()) {
+				if (symbol.getKind() == Kind.FORMAL_PARAM)
+					formalNames.add(symbol.getId());
+			}
+            /*List<Formal> formals = getFormalsList(...);
+            Iterator<Formal> formalIterator = formals.iterator();*/
+            Iterator<String> formalIterator = formalNames.iterator();
             Iterator<Expression> argumentsIterator = call.getArguments().iterator();
             while (formalIterator.hasNext()) {
-                String formalName = formalIterator.next().getName();
+                /*String formalName = formalIterator.next().getName();*/
+            	String formalName = formalIterator.next();
                 Expression argument = argumentsIterator.next();
                 argumentRegisters = new LinkedList<String>();
                 argumentRegisters.add(VAL_OPTMZ);
@@ -531,8 +546,11 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     public List<String> visit(VirtualCall call, List<String> targetRegisters) throws Exception {
         List<String> callBlock = new LinkedList<String>();
 
-        String instanceRegister;
-        BinaryInstruction initializeInstanceRegister;
+        String instanceRegister = null;
+        BinaryInstruction initializeInstanceRegister = null;
+        int methodOffset;
+        String methodName = call.getName();
+        
         if (call.isExternal()) {
             Expression location = call.getLocation();
             List<String> locationRegisters = new LinkedList<String>();
@@ -547,14 +565,32 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
                 instanceRegister = RegisterFactory.allocateRegister();
                 initializeInstanceRegister = new BinaryInstruction(LirBinaryOps.MOVE, targetlocationTR, instanceRegister);
             }
+            
+            // offset
+            
+            String className = ((ClassTypeEntry)location.getAssignedType()).getName();
+            methodOffset = CompileTimeData.getClassLayout(className).getMethodOffset(methodName);
         }
         else {
             initializeInstanceRegister = new BinaryInstruction(LirBinaryOps.MOVE, "this", instanceRegister);
+            
+            // find the lowest enclosing scope that is also a classDecl
+            SymbolTable currentScope = call.getEnclosingScope();
+            String className = "";
+            while (currentScope != null)
+    		{
+            	String scopeID = currentScope.getID();
+    			if (CompileTimeData.isAlreadyBuilt(scopeID)) //translator runs only after completion of classesLayout build
+    				className = scopeID;
+    			currentScope = currentScope.getParentTable();
+    		}
+            methodOffset = CompileTimeData.getClassLayout(className).getMethodOffset(methodName);
         }
+        
         callBlock.add(initializeInstanceRegister.toString());
 
-        int offset = CompileTimeData.getClassLayout(...);
-        String lirCall = instanceRegister + "." + offset + "(";
+        /*int offset = CompileTimeData.getClassLayout(...);*/
+        String lirCall = instanceRegister + "." + methodOffset + "(";
 
         List<String> argumentRegisters;
         List<String> argumentTR;
@@ -654,16 +690,13 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 
     @Override
     public List<String> visit(MathBinaryOp binaryOp, List<String> target) throws Exception {
-    	
-    	/* should be in a setAndGet of MathBinaryOp... */
-    	
+    	    	
     	if (!target.isEmpty() && target.get(0).equals(VAL_OPTMZ))
     		target.remove(0);
     	Expression leftOperator = binaryOp.getFirstOperand();
     	Expression rightOperator = binaryOp.getSecondOperand();
-    	int leftWeight = leftOperator.setAndGetRegWeight();
-    	int rightWeight = rightOperator.setAndGetRegWeight();
-    	/* should be in a setAndGet of MathBinaryOp... */
+    	/*int leftWeight = leftOperator.setAndGetRegWeight();
+    	int rightWeight = rightOperator.setAndGetRegWeight();*/
 
         List<String> binaryOpLirLineList = new LinkedList<String>();
         List<String> leftOpInstructions;

@@ -5,6 +5,7 @@ import IC.AST.Field;
 import IC.AST.ICClass;
 import IC.AST.Method;
 import IC.AST.Program;
+import IC.AST.VirtualMethod;
 import IC.Semantic.ClassNode;
 import IC.Semantic.ClassesGraph;
 
@@ -57,14 +58,18 @@ public class DispacthTableBuilder {
 			
 			Map<String, Integer> classFieldsMap = new LinkedHashMap<String, Integer>();
 			Map<String, Integer> classMethodsMap = new LinkedHashMap<String, Integer>();
+			Map<String, String> classMethodsDeclaringMap = new LinkedHashMap<String, String>();
 			
 			if (superClass != null)
 			{
 				ClassLayout superLayout = CompileTimeData.getClassLayout(superClass);
 				Map<String, Integer> superFieldsMap = superLayout.getFieldsMap();
 				Map<String, Integer> superMethodsMap = superLayout.getMethodsMap();
+				Map<String, String> superMethodsDeclaringMap = superLayout.getDeclaringMap();
+				
 				classFieldsMap.putAll(superFieldsMap);
 				classMethodsMap.putAll(superMethodsMap);
+				classMethodsDeclaringMap.putAll(superMethodsDeclaringMap);
 			}
 			
 			ICClass classASTnode = (ICClass) allClassesASTs.get(nextClass);
@@ -76,10 +81,14 @@ public class DispacthTableBuilder {
 			
 			for (Method method : classASTnode.getMethods())
 			{
-				classMethodsMap.put(method.getName(), classMethodsMap.size());
+				String methodName = method.getName();
+				boolean isVirtual = (method instanceof VirtualMethod);
+				if (isVirtual && !classMethodsMap.containsKey(methodName))
+					classMethodsMap.put(methodName, classMethodsMap.size());
+				classMethodsDeclaringMap.put(methodName, nextClass);
 			}
 			
-			ClassLayout classLayout = new ClassLayout(classMethodsMap, classFieldsMap);
+			ClassLayout classLayout = new ClassLayout(classMethodsMap, classFieldsMap, classMethodsDeclaringMap);
 			CompileTimeData.addClassLayout(nextClass, classLayout);
 
 			Set<String> directChildren = nextClassNode.getNeighboursList().keySet();

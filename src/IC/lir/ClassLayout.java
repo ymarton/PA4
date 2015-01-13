@@ -12,10 +12,12 @@ public class ClassLayout {
     private Map<String,Integer> methodToOffset;
     // DVPtr = 0
     private Map<String,Integer> fieldToOffset;
-
-    public ClassLayout(Map<String,Integer> methodToOffset, Map<String,Integer> fieldToOffset) {
+    private Map<String, String> methodToDeclaringClass;
+    
+    public ClassLayout(Map<String,Integer> methodToOffset, Map<String,Integer> fieldToOffset, Map<String, String> methodToDeclaringClass) {
         this.methodToOffset = methodToOffset;
         this.fieldToOffset = fieldToOffset;
+        this.methodToDeclaringClass = methodToDeclaringClass;
     }
     
     public Map<String,Integer> getMethodsMap()
@@ -26,6 +28,11 @@ public class ClassLayout {
     public Map<String, Integer> getFieldsMap()
     {
     	return this.fieldToOffset;
+    }
+    
+    public Map<String, String> getDeclaringMap()
+    {
+    	return this.methodToDeclaringClass;
     }
     
     public int getMethodOffset(String methodName) {
