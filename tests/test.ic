@@ -1,11 +1,8 @@
-class A extends B{
+class A {
 	static void main(string[] args) {}
-	int x;
-	void f(){
-		int b = a[0];
+	void foo() {
+		boolean c = false;
+		boolean b = true || false && b;
 	}
 }
-
-class B {
-	int[] a;
-}
+	

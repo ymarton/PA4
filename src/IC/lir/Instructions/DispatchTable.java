@@ -26,7 +26,9 @@ public class DispatchTable {
         	declaringClass = this.methodDeclatingMap.get(method);
             ret += "_" + declaringClass + "_" + method + ",";
         }
-        ret = ret.substring(0, ret.length()-1);
+        if (!methodList.isEmpty()) {
+            ret = ret.substring(0, ret.length()-1);
+        }
         ret += "]\n";
         return ret;
     }

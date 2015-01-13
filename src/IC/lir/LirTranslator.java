@@ -32,6 +32,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         for (ICClass icClass : program.getClasses()) {
             instructionList.addAll(icClass.accept(this, null));
         }
+        instructionList.add(0, new BlankLine().toString());
         instructionList.addAll(0, CompileTimeData.getDispatchTables());
         instructionList.addAll(0, CompileTimeData.getStringLiterals());
         return instructionList;
@@ -109,7 +110,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 
         Location location = assignment.getVariable();
         List<String> locationRegs = new ArrayList<String>();
-        List<String> locationTR = assignExpr.accept(this, locationRegs);
+        List<String> locationTR = location.accept(this, locationRegs);
         
         assignmentLirLineList.addAll(assignTR);
         assignmentLirLineList.addAll(locationTR);

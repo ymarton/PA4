@@ -66,13 +66,13 @@ public class CompileTimeData {
 	
 	public static boolean isMemory(String candidate)
 	{
-		return ( isRegName(candidate) || isImmediate(candidate) );
+		return !(isRegName(candidate) || isImmediate(candidate));
 	}
 	public static List<String> getStringLiterals()
 	{
 		List <String> literalsList = new LinkedList<String>();
 		for (Entry<String, Integer> stringLiteral : stringLiterals.entrySet()) {
-			literalsList.add("str" + stringLiteral.getValue() + ": \"" + stringLiteral.getKey() + "\"");
+			literalsList.add("str" + stringLiteral.getValue() + ": " + stringLiteral.getKey() + "\n");
 		}
 		return literalsList;
 	}

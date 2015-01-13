@@ -12,7 +12,6 @@ import IC.Parser.Parser;
 import IC.Semantic.ClassesGraph;
 import IC.Semantic.SemanticError;
 import IC.Semantic.TypeChecking;
-import IC.Symbols.Symbol;
 import IC.Symbols.SymbolTable;
 import IC.Symbols.SymbolTableBuilder;
 import IC.lir.LirTranslator;
@@ -23,6 +22,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import IC.Types.TypesTable;
+import java_cup.runtime.Symbol;
 
 public class Compiler {
 
