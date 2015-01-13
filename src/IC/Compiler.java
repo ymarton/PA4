@@ -12,12 +12,10 @@ import IC.Parser.Parser;
 import IC.Semantic.ClassesGraph;
 import IC.Semantic.SemanticError;
 import IC.Semantic.TypeChecking;
+import IC.Symbols.Symbol;
 import IC.Symbols.SymbolTable;
 import IC.Symbols.SymbolTableBuilder;
-import IC.lir.Instructions.LirLine;
 import IC.lir.LirTranslator;
-import IC.lir.RegisterFactory;
-import java_cup.runtime.Symbol;
 
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -82,7 +80,7 @@ public class Compiler {
 			LirTranslator lirTranslator = new LirTranslator();
 			List<String> lirProgram = rootNode.accept(lirTranslator, null);
 			for (String lirLine : lirProgram) {
-				System.out.print(lirLine.toString());
+				System.out.print(lirLine);
 			}
 		}
 		catch (FileNotFoundException e) {
