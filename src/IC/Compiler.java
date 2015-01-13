@@ -80,9 +80,8 @@ public class Compiler {
 
 			System.out.println();
 			LirTranslator lirTranslator = new LirTranslator();
-			RegisterFactory factory = new RegisterFactory();
-			List<LirLine> lirProgram = rootNode.accept(lirTranslator, factory);
-			for (LirLine lirLine : lirProgram) {
+			List<String> lirProgram = rootNode.accept(lirTranslator, null);
+			for (String lirLine : lirProgram) {
 				System.out.print(lirLine.toString());
 			}
 		}
