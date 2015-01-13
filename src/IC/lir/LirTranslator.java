@@ -4,9 +4,7 @@ import IC.AST.*;
 import IC.AST.Return;
 import IC.AST.StaticCall;
 import IC.AST.VirtualCall;
-import IC.Semantic.ScopeChecker;
 import IC.Symbols.Kind;
-import IC.Symbols.Property;
 import IC.Symbols.Symbol;
 import IC.Symbols.SymbolTable;
 import IC.Types.ClassTypeEntry;
@@ -430,7 +428,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         {
         	target.remove(0);
         	BinaryInstruction optmz = new BinaryInstruction(LirBinaryOps.MOVEARRAY, arrayOp + "[" + indexOp + "]", arrayOp);
-        	arrayLirInstructions.add(optmz.toString());
+            arrayLocationLirLineList.add(optmz.toString());
         	target.add(arrayOp);
         	
         	if (CompileTimeData.isRegName(indexOp))
@@ -441,7 +439,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         	target.add(arrayOp);
         	target.add(indexOp);
         }
-        return arrayLirInstructions;
+        return arrayLocationLirLineList;
         /*
         //baseRegs contains memory/reg, both cases had to return target in this form {regX, offset} / {RegX}
         variableLocationLirLineList.addAll(baseLirInstructions);
@@ -460,6 +458,8 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 
     @Override
     public List<String> visit(StaticCall call, List<String> targetRegisters) throws Exception {
+        if (!targetRegisters.isEmpty() && targetRegisters.get(0).equals(VAL_OPTMZ))
+            targetRegisters.remove(0);
         List<String> callBlock = new LinkedList<String>();
         String lirCall;
         List<String> argumentRegisters;
@@ -544,6 +544,8 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 
     @Override
     public List<String> visit(VirtualCall call, List<String> targetRegisters) throws Exception {
+        if (!targetRegisters.isEmpty() && targetRegisters.get(0).equals(VAL_OPTMZ))
+            targetRegisters.remove(0);
         List<String> callBlock = new LinkedList<String>();
 
         String instanceRegister;
@@ -630,12 +632,16 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 
     @Override
     public List<String> visit(This thisExpression, List<String> targetRegisters) throws Exception {
+        if (!targetRegisters.isEmpty() && targetRegisters.get(0).equals(VAL_OPTMZ))
+            targetRegisters.remove(0);
         targetRegisters.add("this"); //that's it???
         return new LinkedList<String>();
     }
 
     @Override
     public List<String> visit(NewClass newClass, List<String> targetRegisters) throws Exception {
+        if (!targetRegisters.isEmpty() && targetRegisters.get(0).equals(VAL_OPTMZ))
+            targetRegisters.remove(0);
         List<String> newClassBlock = new LinkedList<String>();
         int objectSize = CompileTimeData.getClassLayout(newClass.getName()).getFieldToOffsetSize() + 1;
         objectSize *= 4;
@@ -650,6 +656,8 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 
     @Override
     public List<String> visit(NewArray newArray, List<String> targetRegisters) throws Exception {
+        if (!targetRegisters.isEmpty() && targetRegisters.get(0).equals(VAL_OPTMZ))
+            targetRegisters.remove(0);
         List<String> newArrayBlock = new LinkedList<String>();
         Expression sizeExpression = newArray.getSize();
         List<String> sizeExpressionRegisters = new LinkedList<String>();
@@ -676,6 +684,8 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 
     @Override
     public List<String> visit(Length length, List<String> targetRegisters) throws Exception {
+        if (!targetRegisters.isEmpty() && targetRegisters.get(0).equals(VAL_OPTMZ))
+            targetRegisters.remove(0);
         List<String> lengthBlock = new LinkedList<String>();
         Expression arrayExpression = length.getArray();
         List<String> arrayExpressionRegisters = new LinkedList<String>();
@@ -894,25 +904,58 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 
     @Override
     public List<String> visit(LogicalBinaryOp binaryOp, List<String> target) throws Exception {
+        if (!target.isEmpty() && target.get(0).equals(VAL_OPTMZ))
+            target.remove(0);
         List<String> binaryOpLirLineList = new LinkedList<String>();
-        binaryOpLirLineList.addAll(binaryOp.getFirstOperand().accept(this, factory));
-        binaryOpLirLineList.addAll(binaryOp.getSecondOperand().accept(this, factory));
+        Expression firstOperand = binaryOp.getFirstOperand();
+        List<String> firstOperandRegisters = new LinkedList<String>();
+        firstOperandRegisters.add(VAL_OPTMZ);
+        List<String> firstOperandTR = firstOperand.accept(this, firstOperandRegisters);
+        binaryOpLirLineList.addAll(firstOperandTR);
+        Expression secondOperand = binaryOp.getSecondOperand();
+        List<String> secondOperandRegisters = new LinkedList<String>();
+        secondOperandRegisters.add(VAL_OPTMZ);
+        List<String> secondOperandTR = secondOperand.accept(this, secondOperandRegisters);
+        binaryOpLirLineList.addAll(secondOperandTR);
+
+        String firstOperandResult = firstOperandRegisters.get(0);
+        String secondOperandResult = secondOperandRegisters.get(0);
         Label trueLable = null;
         LirUnaryOps jumpOp = null;
         Label endLabel = new Label("_end_binaryOp_label_" + binaryOp.getLine());
+        BinaryInstruction checkFirstOperand;
+        UnaryInstruction jumpTrue;
+
+        String tempRegister;
+        if (!CompileTimeData.isRegName(firstOperandResult)) {
+            tempRegister = RegisterFactory.allocateRegister();
+            BinaryInstruction initTempRegister = new BinaryInstruction(LirBinaryOps.MOVE, firstOperandResult, tempRegister);
+            binaryOpLirLineList.add(initTempRegister.toString());
+        }
+        else {
+            tempRegister = firstOperandResult;
+        }
+
         switch (binaryOp.getOperator()) {
             case LAND:
-                binaryOpLirLineList.add(new BinaryInstruction(LirBinaryOps.COMPARE, "0", factory.getTargetRegister1()));
-                binaryOpLirLineList.add(new UnaryInstruction(LirUnaryOps.JUMPTRUE, endLabel));
-                binaryOpLirLineList.add(new BinaryInstruction(LirBinaryOps.AND, factory.getTargetRegister2(), factory.getTargetRegister1()));
-                binaryOpLirLineList.add(endLabel);
+                checkFirstOperand = new BinaryInstruction(LirBinaryOps.COMPARE, "0", tempRegister);
+                binaryOpLirLineList.add(checkFirstOperand.toString());
+                jumpTrue = new UnaryInstruction(LirUnaryOps.JUMPTRUE, endLabel);
+                binaryOpLirLineList.add(jumpTrue.toString());
+                BinaryInstruction and = new BinaryInstruction(LirBinaryOps.AND, secondOperandResult, tempRegister);
+                binaryOpLirLineList.add(and.toString());
+                binaryOpLirLineList.add(endLabel.toString());
+                target.add(tempRegister);
                 break;
             case LOR:
-                binaryOpLirLineList.add(new BinaryInstruction(LirBinaryOps.COMPARE, "1", factory.getTargetRegister1()));
-                Label endOrLabel = new Label("_end_and_label_" + binaryOp.getLine());
-                binaryOpLirLineList.add(new UnaryInstruction(LirUnaryOps.JUMPTRUE, endOrLabel));
-                binaryOpLirLineList.add(new BinaryInstruction(LirBinaryOps.AND, factory.getTargetRegister2(), factory.getTargetRegister1()));
-                binaryOpLirLineList.add(endOrLabel);
+                checkFirstOperand = new BinaryInstruction(LirBinaryOps.COMPARE, "1", tempRegister);
+                binaryOpLirLineList.add(checkFirstOperand.toString());
+                jumpTrue = new UnaryInstruction(LirUnaryOps.JUMPTRUE, endLabel);
+                binaryOpLirLineList.add(jumpTrue.toString());
+                BinaryInstruction or = new BinaryInstruction(LirBinaryOps.OR, secondOperandResult, tempRegister);
+                binaryOpLirLineList.add(or.toString());
+                binaryOpLirLineList.add(endLabel.toString());
+                target.add(tempRegister);
                 break;
             case LT:
                     trueLable = new Label("_L_label_" + binaryOp.getLine());
@@ -942,23 +985,32 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
                     trueLable = new Label("_NEQ_label_" + binaryOp.getLine());
                     jumpOp = LirUnaryOps.JUMPFALSE;
                 }
-                binaryOpLirLineList.add(new BinaryInstruction(LirBinaryOps.COMPARE, factory.getTargetRegister2(), factory.getTargetRegister1()));
-                binaryOpLirLineList.add(new UnaryInstruction(jumpOp, trueLable));
-                binaryOpLirLineList.add(new BinaryInstruction(LirBinaryOps.MOVE, "0", factory.getTargetRegister1()));
-                binaryOpLirLineList.add(new UnaryInstruction(LirUnaryOps.JUMP, endLabel));
-                binaryOpLirLineList.add(trueLable);
-                binaryOpLirLineList.add(new BinaryInstruction(LirBinaryOps.MOVE, "1", factory.getTargetRegister1()));
-                binaryOpLirLineList.add(endLabel);
+
+                BinaryInstruction compareOperands = new BinaryInstruction(LirBinaryOps.COMPARE, secondOperandResult, tempRegister);
+                binaryOpLirLineList.add(compareOperands.toString());
+                UnaryInstruction jumpOpLabel = new UnaryInstruction(jumpOp, trueLable);
+                binaryOpLirLineList.add(jumpOpLabel.toString());
+                BinaryInstruction setFalse = new BinaryInstruction(LirBinaryOps.MOVE, "0", tempRegister);
+                binaryOpLirLineList.add(setFalse.toString());
+                UnaryInstruction jump = new UnaryInstruction(LirUnaryOps.JUMP, endLabel);
+                binaryOpLirLineList.add(jump.toString());
+                binaryOpLirLineList.add(trueLable.toString());
+                BinaryInstruction setTrue = new BinaryInstruction(LirBinaryOps.MOVE, "1", tempRegister);
+                binaryOpLirLineList.add(setTrue.toString());
+                binaryOpLirLineList.add(endLabel.toString());
+                target.add(tempRegister);
                 break;
             default:
                 System.out.println("something's wrong");
         }
-        factory.freeRegister();
+
         return binaryOpLirLineList;
     }
 
     @Override
     public List<String> visit(MathUnaryOp unaryOp, List<String> targetRegisters) throws Exception {
+        if (!targetRegisters.isEmpty() && targetRegisters.get(0).equals(VAL_OPTMZ))
+            targetRegisters.remove(0);
         List<String> unaryOpBlock = new LinkedList<String>();
         Expression operandExpression = unaryOp.getOperand();
         List<String> operandRegisters = new ArrayList<String>();
@@ -991,6 +1043,8 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 
     @Override
     public List<String> visit(LogicalUnaryOp unaryOp, List<String> targetRegisters) throws Exception {
+        if (!targetRegisters.isEmpty() && targetRegisters.get(0).equals(VAL_OPTMZ))
+            targetRegisters.remove(0);
         List<String> unaryOpBlock = new LinkedList<String>();
         Expression operandExpression = unaryOp.getOperand();
         List<String> operandRegisters = new ArrayList<String>();
@@ -1022,6 +1076,8 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 
     @Override
     public List<String> visit(Literal literal, List<String> targetRegisters) throws Exception {
+        if (!targetRegisters.isEmpty() && targetRegisters.get(0).equals(VAL_OPTMZ))
+            targetRegisters.remove(0);
         String value = null;
         switch (literal.getType()) {
             case TRUE:
@@ -1047,6 +1103,8 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 
     @Override
     public List<String> visit(ExpressionBlock expressionBlock, List<String> targetRegisters) throws Exception {
+        if (!targetRegisters.isEmpty() && targetRegisters.get(0).equals(VAL_OPTMZ))
+            targetRegisters.remove(0);
         List<String> expressionBlockBlock = new LinkedList<String>();
         Expression expression = expressionBlock.getExpression();
         List<String> expressionRegisters = new LinkedList<String>();
