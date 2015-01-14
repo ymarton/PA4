@@ -159,7 +159,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         else if (location instanceof VariableLocation) {
             //locationRegs = {memory}/{reg,immediate}
             //assignRegs = (immediate/reg/memory)
-            if (!((VariableLocation) location).isExternal()) {//location = var
+            if (!((VariableLocation) location).isExternal() && (locationRegs.size() == 1)) {//location = var and it's not this.var
                 locationOp = locationRegs.get(0);
                 if (CompileTimeData.isImmediate(assignOp))
                 {
