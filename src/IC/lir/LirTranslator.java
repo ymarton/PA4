@@ -683,7 +683,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 		int objectSize = CompileTimeData.getClassLayout(newClass.getName()).getFieldToOffsetSize() + 1;
 		objectSize *= 4;
 		String targetRegister = RegisterFactory.allocateRegister();
-		BinaryInstruction allocateObject = new BinaryInstruction(LirBinaryOps.LIBRARY, "__alocateObject(" + objectSize + ")", targetRegister);
+		BinaryInstruction allocateObject = new BinaryInstruction(LirBinaryOps.LIBRARY, "__allocateObject(" + objectSize + ")", targetRegister);
 		newClassBlock.add(allocateObject.toString());
 		BinaryInstruction addDVPTR = new BinaryInstruction(LirBinaryOps.MOVEFIELD, "_DV_" + newClass.getName(), targetRegister + ".0");
 		newClassBlock.add(addDVPTR.toString());

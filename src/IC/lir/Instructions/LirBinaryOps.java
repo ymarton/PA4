@@ -4,7 +4,7 @@ public enum LirBinaryOps {
 
     MOVE("Move"),
     MOVEARRAY("MoveArray"),
-    MOVEFIELD("MoveFiled"),
+    MOVEFIELD("MoveField"),
     ARRAYLENGTH("ArrayLength"),
     ADD("Add"),
     SUB("Sub"),
