@@ -789,15 +789,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 				// r_weight > l_weight => r_weight >=1 => register exist!
 				binaryOpLirLineList.addAll(rightOpInstructions);
 				String reg = rightOpRegs.get(0);
-				
-				if (!CompileTimeData.isRegName(reg))
-				{
-					String realReg = RegisterFactory.allocateRegister();
-					BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, reg, realReg);
-					binaryOpLirLineList.add(mem2reg.toString());
-					reg = realReg;
-				}
-				
+                
 				leftOpInstructions = leftOperator.accept(this, leftOpRegs);
 				binaryOpLirLineList.addAll(leftOpInstructions);
 				// leftOpRegs contains memory/immediate
