@@ -786,125 +786,125 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 				default:
 					break;
 				}
+			    return binaryOpLirLineList;
         	}
         }
-        else // have side effects OR left heavier or same than "random"  => left is first
-    	{
-        	leftOpInstructions = leftOperator.accept(this, leftOpRegs);
-    		binaryOpLirLineList.addAll(leftOpInstructions);
-    		String leftOp = leftOpRegs.get(0);
-    		
-    		rightOpInstructions = rightOperator.accept(this, rightOpRegs);
-    		binaryOpLirLineList.addAll(rightOpInstructions);
-    		String rightOp = rightOpRegs.get(0);
-    		
-    		BinaryInstruction inst;
-    		switch (binaryOp.getOperator()) {
-			case DIVIDE:
-				if (CompileTimeData.isImmediate(rightOp) && CompileTimeData.isImmediate(leftOp))
-				{
-					String result = String.valueOf(Integer.parseInt(leftOp) / Integer.parseInt(rightOp));
-					target.add(result);
-				}
-				else
-				{
-					if (!CompileTimeData.isRegName(leftOp))
-					{
-						String reg = RegisterFactory.allocateRegister();
-						BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, leftOp, reg);
-						binaryOpLirLineList.add(mem2reg.toString());
-						leftOp = reg;
-					}
-					inst = new BinaryInstruction(LirBinaryOps.DIV, rightOp, leftOp);
-					binaryOpLirLineList.add(inst.toString());
-					target.add(leftOp);
-				}
-				break;
-			case MOD:
-				if (CompileTimeData.isImmediate(rightOp) && CompileTimeData.isImmediate(leftOp))
-				{
-					String result = String.valueOf(Integer.parseInt(leftOp) % Integer.parseInt(rightOp));
-					target.add(result);
-				}
-				else
-				{
-					if (!CompileTimeData.isRegName(leftOp))
-					{
-						String reg = RegisterFactory.allocateRegister();
-						BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, leftOp, reg);
-						binaryOpLirLineList.add(mem2reg.toString());
-						leftOp = reg;
-					}
-					inst = new BinaryInstruction(LirBinaryOps.MOD, rightOp, leftOp);
-					binaryOpLirLineList.add(inst.toString());
-					target.add(leftOp);
-				}
-				break;
-			case MULTIPLY:
-				if (CompileTimeData.isImmediate(rightOp) && CompileTimeData.isImmediate(leftOp))
-				{
-					String result = String.valueOf(Integer.parseInt(leftOp) * Integer.parseInt(rightOp));
-					target.add(result);
-				}
-				else
-				{
-					if (!CompileTimeData.isRegName(leftOp))
-					{
-						String reg = RegisterFactory.allocateRegister();
-						BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, leftOp, reg);
-						binaryOpLirLineList.add(mem2reg.toString());
-						leftOp = reg;
-					}
-					inst = new BinaryInstruction(LirBinaryOps.MUL, rightOp, leftOp);
-					binaryOpLirLineList.add(inst.toString());
-					target.add(leftOp);
-				}
-				break;
-			case MINUS:
-				if (CompileTimeData.isImmediate(rightOp) && CompileTimeData.isImmediate(leftOp))
-				{
-					String result = String.valueOf(Integer.parseInt(leftOp) - Integer.parseInt(rightOp));
-					target.add(result);
-				}
-				else
-				{
-					if (!CompileTimeData.isRegName(leftOp))
-					{
-						String reg = RegisterFactory.allocateRegister();
-						BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, leftOp, reg);
-						binaryOpLirLineList.add(mem2reg.toString());
-						leftOp = reg;
-					}
-					inst = new BinaryInstruction(LirBinaryOps.SUB, rightOp, leftOp);
-					binaryOpLirLineList.add(inst.toString());
-					target.add(leftOp);
-				}
-				break;
-			case PLUS:
-				if (CompileTimeData.isImmediate(rightOp) && CompileTimeData.isImmediate(leftOp))
-				{
-					String result = String.valueOf(Integer.parseInt(leftOp) + Integer.parseInt(rightOp));
-					target.add(result);
-				}
-				else
-				{
-					if (!CompileTimeData.isRegName(leftOp))
-					{
-						String reg = RegisterFactory.allocateRegister();
-						BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, leftOp, reg);
-						binaryOpLirLineList.add(mem2reg.toString());
-						leftOp = reg;
-					}
-					inst = new BinaryInstruction(LirBinaryOps.ADD, rightOp, leftOp);
-					binaryOpLirLineList.add(inst.toString());
-					target.add(leftOp);
-				}
-				break;
-			default:
-				break;
+    	// have side effects OR left heavier or same than "random"  => left is first
+
+    	leftOpInstructions = leftOperator.accept(this, leftOpRegs);
+		binaryOpLirLineList.addAll(leftOpInstructions);
+		String leftOp = leftOpRegs.get(0);
+		
+		rightOpInstructions = rightOperator.accept(this, rightOpRegs);
+		binaryOpLirLineList.addAll(rightOpInstructions);
+		String rightOp = rightOpRegs.get(0);
+		
+		BinaryInstruction inst;
+		switch (binaryOp.getOperator()) {
+		case DIVIDE:
+			if (CompileTimeData.isImmediate(rightOp) && CompileTimeData.isImmediate(leftOp))
+			{
+				String result = String.valueOf(Integer.parseInt(leftOp) / Integer.parseInt(rightOp));
+				target.add(result);
 			}
-    	}
-        return binaryOpLirLineList;
+			else
+			{
+				if (!CompileTimeData.isRegName(leftOp))
+				{
+					String reg = RegisterFactory.allocateRegister();
+					BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, leftOp, reg);
+					binaryOpLirLineList.add(mem2reg.toString());
+					leftOp = reg;
+				}
+				inst = new BinaryInstruction(LirBinaryOps.DIV, rightOp, leftOp);
+				binaryOpLirLineList.add(inst.toString());
+				target.add(leftOp);
+			}
+			break;
+		case MOD:
+			if (CompileTimeData.isImmediate(rightOp) && CompileTimeData.isImmediate(leftOp))
+			{
+				String result = String.valueOf(Integer.parseInt(leftOp) % Integer.parseInt(rightOp));
+				target.add(result);
+			}
+			else
+			{
+				if (!CompileTimeData.isRegName(leftOp))
+				{
+					String reg = RegisterFactory.allocateRegister();
+					BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, leftOp, reg);
+					binaryOpLirLineList.add(mem2reg.toString());
+					leftOp = reg;
+				}
+				inst = new BinaryInstruction(LirBinaryOps.MOD, rightOp, leftOp);
+				binaryOpLirLineList.add(inst.toString());
+				target.add(leftOp);
+			}
+			break;
+		case MULTIPLY:
+			if (CompileTimeData.isImmediate(rightOp) && CompileTimeData.isImmediate(leftOp))
+			{
+				String result = String.valueOf(Integer.parseInt(leftOp) * Integer.parseInt(rightOp));
+				target.add(result);
+			}
+			else
+			{
+				if (!CompileTimeData.isRegName(leftOp))
+				{
+					String reg = RegisterFactory.allocateRegister();
+					BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, leftOp, reg);
+					binaryOpLirLineList.add(mem2reg.toString());
+					leftOp = reg;
+				}
+				inst = new BinaryInstruction(LirBinaryOps.MUL, rightOp, leftOp);
+				binaryOpLirLineList.add(inst.toString());
+				target.add(leftOp);
+			}
+			break;
+		case MINUS:
+			if (CompileTimeData.isImmediate(rightOp) && CompileTimeData.isImmediate(leftOp))
+			{
+				String result = String.valueOf(Integer.parseInt(leftOp) - Integer.parseInt(rightOp));
+				target.add(result);
+			}
+			else
+			{
+				if (!CompileTimeData.isRegName(leftOp))
+				{
+					String reg = RegisterFactory.allocateRegister();
+					BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, leftOp, reg);
+					binaryOpLirLineList.add(mem2reg.toString());
+					leftOp = reg;
+				}
+				inst = new BinaryInstruction(LirBinaryOps.SUB, rightOp, leftOp);
+				binaryOpLirLineList.add(inst.toString());
+				target.add(leftOp);
+			}
+			break;
+		case PLUS:
+			if (CompileTimeData.isImmediate(rightOp) && CompileTimeData.isImmediate(leftOp))
+			{
+				String result = String.valueOf(Integer.parseInt(leftOp) + Integer.parseInt(rightOp));
+				target.add(result);
+			}
+			else
+			{
+				if (!CompileTimeData.isRegName(leftOp))
+				{
+					String reg = RegisterFactory.allocateRegister();
+					BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, leftOp, reg);
+					binaryOpLirLineList.add(mem2reg.toString());
+					leftOp = reg;
+				}
+				inst = new BinaryInstruction(LirBinaryOps.ADD, rightOp, leftOp);
+				binaryOpLirLineList.add(inst.toString());
+				target.add(leftOp);
+			}
+			break;
+		default:
+			break;
+		}
+		return binaryOpLirLineList;
     }
 
     @Override
