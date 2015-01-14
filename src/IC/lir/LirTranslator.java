@@ -42,6 +42,9 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     @Override
   //TODO: check if _ic_main need to be at the end of the lir program
     public List<String> visit(ICClass icClass, List<String> target) throws Exception {
+        if (icClass.getName().equals("Library")) {
+            return new LinkedList<String>();
+        }
     	String className = icClass.getName();
     	ClassLayout classLayout = CompileTimeData.getClassLayout(className);
     	DispatchTable classDT = new DispatchTable(className, classLayout);
@@ -452,20 +455,6 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         	target.add(indexOp);
         }
         return arrayLocationLirLineList;
-        /*
-        //baseRegs contains memory/reg, both cases had to return target in this form {regX, offset} / {RegX}
-        variableLocationLirLineList.addAll(baseLirInstructions);
-        String exprOp = baseRegs.get(0);
-        
-        factory.resetTargetRegisters();
-        arrayLocationLirLineList.addAll(location.getArray().accept(this, factory));
-        arrayLocationLirLineList.addAll(location.getIndex().accept(this, factory));
-        String register1 = factory.getTargetRegister1();
-        String register2 = factory.getTargetRegister2();
-        arrayLocationLirLineList.add(new BinaryInstruction(LirBinaryOps.MOVEARRAY, register1 + "["+ register2 + "]", register1));
-        factory.freeRegister();
-        return arrayLocationLirLineList;
-        */
     }
 
     @Override
@@ -488,10 +477,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
                 argumentTR = argument.accept(this, argumentRegisters);
                 callBlock.addAll(argumentTR);
                 String argumentValue = argumentRegisters.get(0);
-                if (call.getArguments().indexOf(argument) == 0) {
-                    continue;
-                }
-                else {
+                if (!(call.getArguments().indexOf(argument) == 0)) {
                     lirCall += ",";
                 }
                 lirCall += argumentValue;
@@ -518,12 +504,9 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 				if (symbol.getKind() == Kind.FORMAL_PARAM)
 					formalNames.add(symbol.getId());
 			}
-            /*List<Formal> formals = getFormalsList(...);
-            Iterator<Formal> formalIterator = formals.iterator();*/
             Iterator<String> formalIterator = formalNames.iterator();
             Iterator<Expression> argumentsIterator = call.getArguments().iterator();
             while (formalIterator.hasNext()) {
-                /*String formalName = formalIterator.next().getName();*/
             	String formalName = formalIterator.next();
                 Expression argument = argumentsIterator.next();
                 argumentRegisters = new LinkedList<String>();
@@ -531,9 +514,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
                 argumentTR = argument.accept(this, argumentRegisters);
                 callBlock.addAll(argumentTR);
                 String argumentValue = argumentRegisters.get(0);
-                if (call.getArguments().indexOf(argument) == 0) {
-                    continue;
-                } else {
+                if (!(call.getArguments().indexOf(argument) == 0)) {
                     lirCall += ",";
                 }
                 lirCall += formalName + "=" + argumentValue;
@@ -564,6 +545,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         BinaryInstruction initializeInstanceRegister;
         int methodOffset;
         String methodName = call.getName();
+        String className;
         
         if (call.isExternal()) {
             Expression location = call.getLocation();
@@ -583,7 +565,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
             
             // offset
             
-            String className = ((ClassTypeEntry)location.getAssignedType()).getName();
+            className = ((ClassTypeEntry)location.getAssignedType()).getName();
             methodOffset = CompileTimeData.getClassLayout(className).getMethodOffset(methodName);
         }
         else {
@@ -593,7 +575,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
             
             // find the lowest enclosing scope that is also a classDecl
             SymbolTable currentScope = call.getEnclosingScope();
-            String className = "";
+            className = "";
             while (currentScope != null)
     		{
             	String scopeID = currentScope.getID();
@@ -604,7 +586,6 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
             methodOffset = CompileTimeData.getClassLayout(className).getMethodOffset(methodName);
         }
 
-        /*int offset = CompileTimeData.getClassLayout(...);*/
         String lirCall = instanceRegister + "." + methodOffset + "(";
 
         List<String> argumentRegisters;
@@ -613,19 +594,27 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         BinaryInstruction callInstruction;
         String targetRegister;
 
-        for (Expression argument : call.getArguments()) {
+        String declatingClass = CompileTimeData.getClassLayout(className).getDeclaringMap().get(methodName);
+        SymbolTable methodSymbolTable = SymbolTable.getTopTable().getSymbolByID(declatingClass).getSymTableRef().getSymbolByID(methodName).getSymTableRef();
+        List<String> formalNames = new LinkedList<String>();
+        for (Symbol symbol : methodSymbolTable.getSymbols()) {
+            if (symbol.getKind() == Kind.FORMAL_PARAM)
+                formalNames.add(symbol.getId());
+        }
+        Iterator<String> formalIterator = formalNames.iterator();
+        Iterator<Expression> argumentsIterator = call.getArguments().iterator();
+        while (formalIterator.hasNext()) {
+            String formalName = formalIterator.next();
+            Expression argument = argumentsIterator.next();
             argumentRegisters = new LinkedList<String>();
             argumentRegisters.add(VAL_OPTMZ);
             argumentTR = argument.accept(this, argumentRegisters);
             callBlock.addAll(argumentTR);
             String argumentValue = argumentRegisters.get(0);
-            if (call.getArguments().indexOf(argument) == 0) {
-                continue;
-            }
-            else {
+            if (!(call.getArguments().indexOf(argument) == 0)) {
                 lirCall += ",";
             }
-            lirCall += argumentValue;
+            lirCall += formalName + "=" + argumentValue;
             if (CompileTimeData.isRegName(argumentValue)) {
                 registersToFree.add(argumentValue);
             }

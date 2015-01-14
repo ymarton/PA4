@@ -10,14 +10,15 @@ class A {
     p.foo(5);
   }
 }
+
 class B extends A {
   int z;
   int foo(int y) {
-    s = "y=";
-    //Library.println(s);
-    int[] sarr = new int[4];
+    s = "y=" + Library.itos(y);
+    Library.println(s);
+    int[] sarr = Library.stoa(s);
     int l = sarr.length;
-    //Library.printi(l);
+    Library.printi(l);
     return l;
   }
 }
