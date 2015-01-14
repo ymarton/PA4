@@ -113,6 +113,6 @@ public class CompileTimeData {
 	
 	public static boolean isAlreadyBuilt(String className)
 	{
-		return classLayouts.containsKey(classLayouts);
+		return classLayouts.containsKey(className);
 	}
 }
