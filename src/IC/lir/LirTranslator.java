@@ -9,6 +9,7 @@ import IC.Symbols.Symbol;
 import IC.Symbols.SymbolTable;
 import IC.Types.ClassTypeEntry;
 import IC.lir.Instructions.*;
+import microLIR.instructions.Reg;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -62,7 +63,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         	methodInstructions.addAll(method.accept(this, null));
         	classInstructions.addAll(methodInstructions);
         }
-
+        classInstructions.add(new BlankLine().toString());
         return classInstructions;
     }
 
@@ -213,8 +214,14 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     public List<String> visit(CallStatement callStatement, List<String> targetRegisters) throws Exception {
         List<String> callStatementBlock = new LinkedList<String>();
         Call call = callStatement.getCall();
-        List<String> callStatementTR = call.accept(this, new LinkedList<String>());
+        List<String> callStatementRegisters = new LinkedList<String>();
+        List<String> callStatementTR = call.accept(this, callStatementRegisters);
         callStatementBlock.addAll(callStatementTR);
+        for (String target : callStatementRegisters) {
+            if (CompileTimeData.isRegName(target)) {
+                RegisterFactory.freeRegister(target);
+            }
+        }
         return callStatementBlock;
     }
 
@@ -627,11 +634,10 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         for (String register : registersToFree) {
             RegisterFactory.freeRegister(register);
         }
-        targetRegister = RegisterFactory.allocateRegister();
-        callInstruction = new BinaryInstruction(LirBinaryOps.VIRTUALCALL, lirCall, targetRegister);
+        callInstruction = new BinaryInstruction(LirBinaryOps.VIRTUALCALL, lirCall, instanceRegister);
 
         callBlock.add(callInstruction.toString());
-        targetRegisters.add(targetRegister);
+        targetRegisters.add(instanceRegister);
         return callBlock;
     }
 
@@ -697,10 +703,17 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
         arrayExpressionRegisters.add(VAL_OPTMZ);
         List<String> arrayExpressionTR = arrayExpression.accept(this, arrayExpressionRegisters);
         lengthBlock.addAll(arrayExpressionTR);
-        String arrayAndTargetRegister = arrayExpressionRegisters.get(0);
-        BinaryInstruction lengthInstruction = new BinaryInstruction(LirBinaryOps.ARRAYLENGTH, arrayAndTargetRegister, arrayAndTargetRegister); //is it okay to use the same register to store the result?
+        String arrayExpressionResult = arrayExpressionRegisters.get(0);
+        String targetRegister;
+        if (CompileTimeData.isRegName(arrayExpressionResult)) {
+            targetRegister = arrayExpressionResult;
+        }
+        else {
+            targetRegister = RegisterFactory.allocateRegister();
+        }
+        BinaryInstruction lengthInstruction = new BinaryInstruction(LirBinaryOps.ARRAYLENGTH, arrayExpressionResult, targetRegister);
         lengthBlock.add(lengthInstruction.toString());
-        targetRegisters.add(arrayAndTargetRegister);
+        targetRegisters.add(targetRegister);
         return lengthBlock;
     }
 

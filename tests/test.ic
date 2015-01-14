@@ -1,8 +1,23 @@
 class A {
-	static void main(string[] args) {}
-	void foo() {
-		boolean c = false;
-		boolean b = true || false && b;
-	}
+  int x;
+  string s;
+  int foo(int y) {
+    int z=y+1;
+    return z;
+  }
+  static void main(string[] args) {
+    A p = new B();
+    p.foo(5);
+  }
 }
-	
+class B extends A {
+  int z;
+  int foo(int y) {
+    s = "y=";
+    //Library.println(s);
+    int[] sarr = new int[4];
+    int l = sarr.length;
+    //Library.printi(l);
+    return l;
+  }
+}
