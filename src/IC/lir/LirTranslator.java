@@ -370,12 +370,38 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     public List<String> visit(VariableLocation location, List<String> target) throws Exception {
     	location.setAndGetRegWeight();
         List<String> variableLocationLirLineList = new LinkedList<String>();
-        if (!location.isExternal()) {
+        
+        SymbolTable currentScope = location.getEnclosingScope();
+        Boolean isNotField = true;
+        Boolean foundDeclaration = false;
+        String id = location.getName();
+        String fieldClassOwner = "";
+        while (!foundDeclaration && (currentScope != null))
+		{
+        	String classID = currentScope.getID();
+        	if (currentScope.getSymbolByID(id) != null)
+        	{
+        		foundDeclaration = true;
+        		if (CompileTimeData.isAlreadyBuilt(classID))
+        		{
+        			isNotField = false;
+        			fieldClassOwner = classID;
+        		}
+        	}
+			currentScope = currentScope.getParentTable();
+		}
+        
+        if (!location.isExternal() && isNotField) {
             if (!target.isEmpty() && target.get(0).equals(VAL_OPTMZ))
             	target.remove(0);
             target.add(location.getName());
         }
         else {
+        	String exprOp;
+            String className;
+
+        	if (location.isExternal())
+        	{
             List<String> baseRegs = new ArrayList<String>();
             baseRegs.add(VAL_OPTMZ);
             Expression baseExpr = location.getLocation();
@@ -383,7 +409,17 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
             
             //baseRegs contains memory/reg, both cases had to return target in this form {regX, offset} / {RegX}
             variableLocationLirLineList.addAll(baseLirInstructions);
-            String exprOp = baseRegs.get(0);
+            exprOp = baseRegs.get(0);
+        	className = ((ClassTypeEntry)baseExpr.getAssignedType()).getName();
+
+        	}
+        	else // happened when "variableLocation == ID" and ID is a field, aka this.ID
+        	{
+        		exprOp = "this";
+        		className = fieldClassOwner;
+        	}
+        	
+        	
             if (!CompileTimeData.isRegName(exprOp)) // memory
             {
             	String exprReg = RegisterFactory.allocateRegister();
@@ -391,10 +427,8 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
                 variableLocationLirLineList.add(getMem.toString());
                 exprOp = exprReg;
             }
-            // exprReg == Reg with expr
             
             // need to calculate the offset
-            String className = ((ClassTypeEntry)baseExpr.getAssignedType()).getName();
             ClassLayout classLayout = CompileTimeData.getClassLayout(className);
             int offset = classLayout.getFieldOffset(location.getName());
             String offsetStr = String.valueOf(offset);
