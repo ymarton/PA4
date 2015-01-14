@@ -213,7 +213,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
     public List<String> visit(CallStatement callStatement, List<String> targetRegisters) throws Exception {
         List<String> callStatementBlock = new LinkedList<String>();
         Call call = callStatement.getCall();
-        List<String> callStatementTR = call.accept(this, null);
+        List<String> callStatementTR = call.accept(this, new LinkedList<String>());
         callStatementBlock.addAll(callStatementTR);
         return callStatementBlock;
     }
