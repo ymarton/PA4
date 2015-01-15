@@ -676,7 +676,9 @@ public class TypeChecking implements ThrowingVisitor {
 	 */
 	@Override
 	public Object visit(ExpressionBlock expressionBlock) throws Exception {
-		return expressionBlock.getExpression().accept(this);
+		AbstractEntryTypeTable type = (AbstractEntryTypeTable) expressionBlock.getExpression().accept(this);
+		expressionBlock.setAssignedType(type);
+		return type;
 	}
 
 	/**
