@@ -80,10 +80,10 @@ public class Compiler {
 			List<String> lirProgram = rootNode.accept(lirTranslator, null);
 
 			int i = programFilePath.length()-1;
-			while (i >= 0 && ((programFilePath.charAt(i) == '\\') || (programFilePath.charAt(i) == '/'))) {
+			while (i >= 0 && (programFilePath.charAt(i) != '\\') && (programFilePath.charAt(i) != '/')) {
 				i--;
 			}
-			String icFileName = programFilePath.substring(i);
+			String icFileName = programFilePath.substring(i+1, programFilePath.length()-3);
 			if (getString(args, "-print-lir") != null)
 				makeLirFile(lirProgram, icFileName);
 		}
