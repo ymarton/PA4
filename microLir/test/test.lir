@@ -9,7 +9,8 @@ _DV_Quicksort: [_Quicksort_partition,_Quicksort_quicksort,_Quicksort_initArray,_
 _Quicksort_partition:
 Move this,R0
 MoveField R0.1,R0
-MoveArray R0[low],R0
+Move low,R1
+MoveArray R0[R1],R0
 Move R0,pivot
 Move low,R0
 Move R0,i
@@ -21,7 +22,8 @@ JumpTrue _end_while_label_24
 _while_label_25:
 Move this,R1
 MoveField R1.1,R1
-MoveArray R1[i],R1
+Move i,R2
+MoveArray R1[R2],R1
 Compare pivot,R1
 JumpL _L_label_25
 Move 0,R1
@@ -39,7 +41,8 @@ _end_while_label_25:
 _while_label_26:
 Move this,R1
 MoveField R1.1,R1
-MoveArray R1[j],R1
+Move j,R2
+MoveArray R1[R2],R1
 Compare pivot,R1
 JumpG _G_label_26
 Move 0,R1
@@ -68,18 +71,22 @@ _end_while_label_26:
 _end_if_label_28:
 Move this,R1
 MoveField R1.1,R1
-MoveArray R1[i],R1
+Move i,R2
+MoveArray R1[R2],R1
 Move R1,tmp
 Move this,R1
 MoveField R1.1,R1
-MoveArray R1[j],R1
+Move j,R2
+MoveArray R1[R2],R1
 Move this,R2
 MoveField R2.1,R2
-MoveArray R1,R2[i]
-Move this,R2
-MoveField R2.1,R2
+Move i,R3
+MoveArray R1,R2[R3]
+Move this,R3
+MoveField R3.1,R3
+Move j,R2
 Move tmp,R1
-MoveArray R1,R2[j]
+MoveArray R1,R3[R2]
 Move i,R2
 Add 1,R2
 Move R2,i
@@ -128,17 +135,18 @@ Move 1,R2
 _end_binaryOp_label_50:
 Compare 0,R2
 JumpTrue _end_while_label_50
-Move this,R1
-MoveField R1.1,R1
-ArrayLength R1,R1
-Mul 2,R1
-Library __random(R1),R1
 Move this,R3
 MoveField R3.1,R3
-MoveArray R1,R3[i]
-Move i,R3
-Add 1,R3
-Move R3,i
+ArrayLength R3,R3
+Mul 2,R3
+Library __random(R3),R3
+Move this,R1
+MoveField R1.1,R1
+Move i,R4
+MoveArray R3,R1[R4]
+Move i,R4
+Add 1,R4
+Move R4,i
 Jump _while_label_50
 _end_while_label_50:
 
@@ -149,19 +157,20 @@ _while_label_60:
 Move this,R2
 MoveField R2.1,R2
 ArrayLength R2,R2
-Move i,R3
-Compare R2,R3
+Move i,R4
+Compare R2,R4
 JumpL _L_label_60
-Move 0,R3
+Move 0,R4
 Jump _end_binaryOp_label_60
 _L_label_60:
-Move 1,R3
+Move 1,R4
 _end_binaryOp_label_60:
-Compare 0,R3
+Compare 0,R4
 JumpTrue _end_while_label_60
 Move this,R1
 MoveField R1.1,R1
-MoveArray R1[i],R1
+Move i,R3
+MoveArray R1[R3],R1
 Library __printi(R1),R1
 Library __print(str2),R1
 Move i,R1
@@ -169,58 +178,60 @@ Add 1,R1
 Move R1,i
 Jump _while_label_60
 _end_while_label_60:
-Library __print(str3),R3
+Library __print(str3),R4
 
 
 _ic_main:
-Library __allocateArray(1),R3
-Move R3,args2
-Move args2,R3
+Library __allocateArray(4),R4
+Move R4,args2
+Move args2,R4
 Move str4,R1
-MoveArray R1,R3[0]
-ArrayLength args2,R3
-Compare 1,R3
+MoveArray R1,R4[0]
+ArrayLength args2,R4
+Compare 1,R4
 JumpFalse _NEQ_label_73
-Move 0,R3
+Move 0,R4
 Jump _end_binaryOp_label_73
 _NEQ_label_73:
-Move 1,R3
+Move 1,R4
 _end_binaryOp_label_73:
-Compare 0,R3
+Compare 0,R4
 JumpTrue _end_if_label_73
-Library __println(str5),R3
-Library __exit(1),R3
+Library __println(str5),R4
+Library __exit(1),R4
 _end_if_label_73:
-Move args2,R3
-MoveArray R3[0],R3
-Library __stoi(R3,0),R3
-Move R3,n
-Move n,R3
-Compare 0,R3
+Move args2,R4
+MoveArray R4[0],R4
+Library __stoi(R4,0),R4
+Move R4,n
+Move n,R4
+Compare 0,R4
 JumpLE _LE_label_79
-Move 0,R3
+Move 0,R4
 Jump _end_binaryOp_label_79
 _LE_label_79:
-Move 1,R3
+Move 1,R4
 _end_binaryOp_label_79:
-Compare 0,R3
+Compare 0,R4
 JumpTrue _end_if_label_79
-Library __println(str6),R3
-Library __exit(1),R3
+Library __println(str6),R4
+Library __exit(1),R4
 _end_if_label_79:
-Library __allocateObject(8),R3
-MoveField _DV_Quicksort,R3.0
-Move R3,s
-Library __allocateArray(n),R3
+Library __allocateObject(8),R4
+MoveField _DV_Quicksort,R4.0
+Move R4,s
+Move n,R4
+Mul 4,R4
+Library __allocateArray(R4),R4
 Move s,R1
-MoveField R3,R1.1
+MoveField R4,R1.1
 Move s,R1
 VirtualCall R1.2(),R1
 Move s,R1
 VirtualCall R1.3(),R1
 Move s,R1
-Move n,R3
-Sub 1,R3
-VirtualCall R1.1(low=0,high=R3),R1
+Move n,R4
+Sub 1,R4
+VirtualCall R1.1(low=0,high=R4),R1
 Move s,R1
 VirtualCall R1.3(),R1

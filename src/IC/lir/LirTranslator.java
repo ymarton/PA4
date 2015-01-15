@@ -11,6 +11,7 @@ import IC.Types.ClassTypeEntry;
 import IC.Types.PrimitiveTypeEnum;
 import IC.Types.TypesTable;
 import IC.lir.Instructions.*;
+import com.sun.prism.RectShadowGraphics;
 import microLIR.instructions.Reg;
 
 import java.util.ArrayList;
@@ -771,23 +772,37 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 		sizeExpressionRegisters.add(VAL_OPTMZ);
 		List<String> sizeExpressionTR = sizeExpression.accept(this, sizeExpressionRegisters);
 		newArrayBlock.addAll(sizeExpressionTR);
-		String sizeRegister = sizeExpressionRegisters.get(0);
-//        BinaryInstruction checkSize = new BinaryInstruction(LirBinaryOps.LIBRARY, "__checkSize(" + sizeRegister + ")", "Rdummy");
+		String sizeResult = sizeExpressionRegisters.get(0);
+
+//        BinaryInstruction checkSize = new BinaryInstruction(LirBinaryOps.LIBRARY, "__checkSize(" + sizeResult + ")", "Rdummy");
 //        newArrayBlock.add(checkSize.toString()); TODO: uncomment
+
+		String sizeTimes4Reg;
 		BinaryInstruction allocateArray;
-
-		if (CompileTimeData.isRegName(sizeRegister)) {
-			allocateArray =  new BinaryInstruction(LirBinaryOps.LIBRARY, "__allocateArray(" + sizeRegister + ")", sizeRegister); //is it okay to use the same register to store the result?
+		if (CompileTimeData.isImmediate(sizeResult)) {
+			sizeTimes4Reg = String.valueOf(Integer.valueOf(sizeResult) * 4);
+			String target = RegisterFactory.allocateRegister();
+			allocateArray =  new BinaryInstruction(LirBinaryOps.LIBRARY, "__allocateArray(" + sizeTimes4Reg + ")", target);
 			newArrayBlock.add(allocateArray.toString());
-			targetRegisters.add(sizeRegister);
+			targetRegisters.add(target);
 		}
-		else if (CompileTimeData.isMemory(sizeRegister) || CompileTimeData.isImmediate(sizeRegister)) {
-			String targetRegister = RegisterFactory.allocateRegister();
-			allocateArray =  new BinaryInstruction(LirBinaryOps.LIBRARY, "__allocateArray(" + sizeRegister + ")", targetRegister);
+		else if (CompileTimeData.isMemory(sizeResult)) {
+			sizeTimes4Reg = RegisterFactory.allocateRegister();
+			BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, sizeResult, sizeTimes4Reg);
+			newArrayBlock.add(mem2reg.toString());
+			BinaryInstruction mulBy4 = new BinaryInstruction(LirBinaryOps.MUL, "4", sizeTimes4Reg);
+			newArrayBlock.add(mulBy4.toString());
+			allocateArray =  new BinaryInstruction(LirBinaryOps.LIBRARY, "__allocateArray(" + sizeTimes4Reg + ")", sizeTimes4Reg);
 			newArrayBlock.add(allocateArray.toString());
-			targetRegisters.add(targetRegister);
+			targetRegisters.add(sizeTimes4Reg);
 		}
-
+		else {
+			BinaryInstruction mulBy4 = new BinaryInstruction(LirBinaryOps.MUL, "4", sizeResult);
+			newArrayBlock.add(mulBy4.toString());
+			allocateArray =  new BinaryInstruction(LirBinaryOps.LIBRARY, "__allocateArray(" + sizeResult + ")", sizeResult);
+			newArrayBlock.add(allocateArray.toString());
+			targetRegisters.add(sizeResult);
+		}
 		return newArrayBlock;
 	}
 
