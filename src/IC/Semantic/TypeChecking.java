@@ -13,6 +13,7 @@ import IC.Types.TypesTable;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.UUID;
 
 public class TypeChecking implements ThrowingVisitor {
 
@@ -257,7 +258,8 @@ public class TypeChecking implements ThrowingVisitor {
 	 */
 	@Override
 	public Object visit(While whileStatement) throws Exception {
-		scopeChecker.loopON();
+		String GUID = UUID.randomUUID().toString();
+		scopeChecker.loopON(GUID);
 		AbstractEntryTypeTable conditionTypeEntry = (AbstractEntryTypeTable) whileStatement.getCondition().accept(this);
 		PrimitiveTypeEntry booleanTypeEntry = TypesTable.getPrimitiveEntry(PrimitiveTypeEnum.BOOLEAN);
 		if (!conditionTypeEntry.equals(booleanTypeEntry))
@@ -265,7 +267,7 @@ public class TypeChecking implements ThrowingVisitor {
 		if (whileStatement.getOperation() != null) {
 			whileStatement.getOperation().accept(this);
 		}
-		scopeChecker.loopOFF();
+		scopeChecker.loopOFF(GUID);
 		return null;
 	}
 

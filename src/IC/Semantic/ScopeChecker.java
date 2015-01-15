@@ -17,7 +17,8 @@ public class ScopeChecker implements ThrowingVisitor {
 	private boolean seenMain = false;
 	private boolean isStatic = false;
 	private boolean isLoop = false;
-
+	private String LoopOwnerGUID = null;
+	
 	public boolean seenMain()
 	{
 		return this.seenMain;
@@ -33,16 +34,29 @@ public class ScopeChecker implements ThrowingVisitor {
 		this.isStatic = false;
 	}
 
-	public void loopON()
+	public void loopON(String ownerGUID)
 	{
-		this.isLoop = true;
+		if (LoopOwnerGUID == null)
+		{
+			LoopOwnerGUID = ownerGUID;
+			this.isLoop = true;
+		}
 	}
 
-	public void loopOFF()
+	public void loopOFF(String ownerGUID)
 	{
-		this.isLoop = false;
+		if (LoopOwnerGUID.equals(ownerGUID))
+		{
+			LoopOwnerGUID = null;
+			this.isLoop = false;
+		}
 	}
 
+	public boolean isAlreadyLoop()
+	{
+		return this.isLoop;
+	}
+	
 	@Override
 	public Object visit(Program program) throws Exception {
 		return program.getEnclosingScope().getSymbolByID("program");
