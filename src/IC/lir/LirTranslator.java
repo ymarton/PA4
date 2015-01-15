@@ -490,8 +490,15 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 						}
 					}
 					// this is the declaring scope, so it have to initialized here (or before) - but thats not the case - so we're done
-					if (currScope.getSymbolByID(id) != null)
+					Symbol symbol = currScope.getSymbolByID(id);
+					if (symbol != null)
+					{
+						if (symbol.getKind() == Kind.FORMAL_PARAM)
+						{
+							isInit = true;
+						}
 						break;
+					}
 
 					currScope = currScope.getParentTable();
 				}
