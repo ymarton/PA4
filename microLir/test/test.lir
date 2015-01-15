@@ -1,36 +1,255 @@
-str1: "y="
-_DV_A: [_A_foo]
-_DV_B: [_B_foo]
+str1: "Array elements: "
+str2: " "
+str3: "\n"
+str4: "hi"
+str5: "Unspecified array length"
+str6: "Invalid array length"
+_DV_Quicksort: [_Quicksort_partition,_Quicksort_quicksort,_Quicksort_initArray,_Quicksort_printArray]
 
-_A_foo:
-Move y,R0
-Add 1,R0
-Move R0,z
-Return z
+_Quicksort_partition:
+Move this,R0
+MoveField R0.1,R0
+#Library __checkNullRef(R0),Rdummy
+#Library __checkArrayAccess(R0,low),Rdummy
+MoveArray R0[low],R0
+Move R0,pivot
+Move low,R0
+Move R0,i
+Move high,R0
+Move R0,j
+_while_label_24:
+Compare 0,R0
+JumpTrue _end_while_label_24
+_while_label_25:
+Move this,R1
+MoveField R1.1,R1
+#Library __checkNullRef(R1),Rdummy
+#Library __checkArrayAccess(R1,i),Rdummy
+MoveArray R1[i],R1
+Compare pivot,R1
+JumpL _L_label_25
+Move 0,R1
+Jump _end_binaryOp_label_25
+_L_label_25:
+Move 1,R1
+_end_binaryOp_label_25:
+Compare 0,R1
+JumpTrue _end_while_label_25
+Move i,R2
+Add 1,R2
+Move R2,i
+Jump _while_label_25
+_end_while_label_25:
+_while_label_26:
+Move this,R1
+MoveField R1.1,R1
+#Library __checkNullRef(R1),Rdummy
+#Library __checkArrayAccess(R1,j),Rdummy
+MoveArray R1[j],R1
+Compare pivot,R1
+JumpG _G_label_26
+Move 0,R1
+Jump _end_binaryOp_label_26
+_G_label_26:
+Move 1,R1
+_end_binaryOp_label_26:
+Compare 0,R1
+JumpTrue _end_while_label_26
+Move j,R2
+Sub 1,R2
+Move R2,j
+Jump _while_label_26
+_end_while_label_26:
+Move i,R1
+Compare j,R1
+JumpGE _GE_label_28
+Move 0,R1
+Jump _end_binaryOp_label_28
+_GE_label_28:
+Move 1,R1
+_end_binaryOp_label_28:
+Compare 0,R1
+JumpTrue _end_if_label_28
+_end_while_label_26:
+_end_if_label_28:
+Move this,R1
+MoveField R1.1,R1
+#Library __checkNullRef(R1),Rdummy
+#Library __checkArrayAccess(R1,i),Rdummy
+MoveArray R1[i],R1
+Move R1,tmp
+Move this,R1
+MoveField R1.1,R1
+#Library __checkNullRef(R1),Rdummy
+#Library __checkArrayAccess(R1,j),Rdummy
+MoveArray R1[j],R1
+Move this,R2
+MoveField R2.1,R2
+#Library __checkNullRef(R2),Rdummy
+#Library __checkArrayAccess(R2,i),Rdummy
+MoveArray R1,R2[i]
+Move this,R2
+MoveField R2.1,R2
+#Library __checkNullRef(R2),Rdummy
+#Library __checkArrayAccess(R2,j),Rdummy
+Move tmp,R1
+MoveArray R1,R2[j]
+Move i,R2
+Add 1,R2
+Move R2,i
+Move j,R2
+Sub 1,R2
+Move R2,j
+Jump _while_label_26
+_end_while_label_26:
+Return j
 
-_B_foo:
-Library __itos(y),R0
-Library __stringCat(str1,R0),R0
+_Quicksort_quicksort:
+Move low,R0
+Compare high,R0
+JumpL _L_label_41
+Move 0,R0
+Jump _end_binaryOp_label_41
+_L_label_41:
+Move 1,R0
+_end_binaryOp_label_41:
+Compare 0,R0
+JumpTrue _end_if_label_41
 Move this,R0
-MoveField R0,R0.2
+VirtualCall R0.0(low=low,high=high),R0
+Move R0,mid
 Move this,R0
-MoveField R0.2,R0
-Library __println(R0),R0
+VirtualCall R0.1(low=low,high=mid),R0
 Move this,R0
-MoveField R0.2,R0
-Library __stoa(R0),R0
-Move R0,sarr
-#Library __checkNullRef(sarr),Rdummy
-ArrayLength sarr,R0
-Move R0,l
-Library __printi(l),R0
-Return l
+Move mid,R2
+Add 1,R2
+VirtualCall R0.1(low=R2,high=high),R0
+_end_if_label_41:
+
+_Quicksort_initArray:
+Move 0,i
+_while_label_50:
+Move this,R0
+MoveField R0.1,R0
+#Library __checkNullRef(R0),Rdummy
+ArrayLength R0,R0
+Move i,R2
+Compare R0,R2
+JumpL _L_label_50
+Move 0,R2
+Jump _end_binaryOp_label_50
+_L_label_50:
+Move 1,R2
+_end_binaryOp_label_50:
+Compare 0,R2
+JumpTrue _end_while_label_50
+Move this,R1
+MoveField R1.1,R1
+#Library __checkNullRef(R1),Rdummy
+ArrayLength R1,R1
+Mul 2,R1
+Library __random(R1),R1
+Move this,R3
+MoveField R3.1,R3
+#Library __checkNullRef(R3),Rdummy
+#Library __checkArrayAccess(R3,i),Rdummy
+MoveArray R1,R3[i]
+Move i,R3
+Add 1,R3
+Move R3,i
+Jump _while_label_50
+_end_while_label_50:
+
+_Quicksort_printArray:
+Move 0,i
+Library __print(str1),R2
+_while_label_60:
+Move this,R2
+MoveField R2.1,R2
+#Library __checkNullRef(R2),Rdummy
+ArrayLength R2,R2
+Move i,R3
+Compare R2,R3
+JumpL _L_label_60
+Move 0,R3
+Jump _end_binaryOp_label_60
+_L_label_60:
+Move 1,R3
+_end_binaryOp_label_60:
+Compare 0,R3
+JumpTrue _end_while_label_60
+Move this,R1
+MoveField R1.1,R1
+#Library __checkNullRef(R1),Rdummy
+#Library __checkArrayAccess(R1,i),Rdummy
+MoveArray R1[i],R1
+Library __printi(R1),R1
+Library __print(str2),R1
+Move i,R1
+Add 1,R1
+Move R1,i
+Jump _while_label_60
+_end_while_label_60:
+Library __print(str3),R3
 
 
 _ic_main:
-Library __allocateObject(16),R0
-MoveField _DV_B,R0.0
-Move R0,p
-#Library __checkNullRef(p),Rdummy
-Move p,R0
-VirtualCall R0.0(y=5),R0
+#Library __checkNullRef(args2),Rdummy
+#Library __checkArrayAccess(args2,0),Rdummy
+Move str4,R3
+MoveArray R3,args2[0]
+#Library __checkNullRef(args2),Rdummy
+ArrayLength args2,R3
+Compare 1,R3
+JumpFalse _NEQ_label_73
+Move 0,R3
+Jump _end_binaryOp_label_73
+_NEQ_label_73:
+Move 1,R3
+_end_binaryOp_label_73:
+Compare 0,R3
+JumpTrue _end_if_label_73
+Library __println(str5),R3
+Library __exit(1),R3
+_end_if_label_73:
+#Library __checkNullRef(args2),Rdummy
+#Library __checkArrayAccess(args2,0),Rdummy
+Move args2,R3
+MoveArray R3[0],R3
+Library __stoi(R3,0),R3
+Move R3,n
+Move n,R3
+Compare 0,R3
+JumpLE _LE_label_79
+Move 0,R3
+Jump _end_binaryOp_label_79
+_LE_label_79:
+Move 1,R3
+_end_binaryOp_label_79:
+Compare 0,R3
+JumpTrue _end_if_label_79
+Library __println(str6),R3
+Library __exit(1),R3
+_end_if_label_79:
+Library __allocateObject(8),R3
+MoveField _DV_Quicksort,R3.0
+Move R3,s
+#Library __checkSize(n),Rdummy
+Library __allocateArray(n),R3
+#Library __checkNullRef(s),Rdummy
+Move s,R1
+MoveField R3,R1.1
+#Library __checkNullRef(s),Rdummy
+Move s,R1
+VirtualCall R1.2(),R1
+#Library __checkNullRef(s),Rdummy
+Move s,R1
+VirtualCall R1.3(),R1
+#Library __checkNullRef(s),Rdummy
+Move s,R1
+Move n,R3
+Sub 1,R3
+VirtualCall R1.1(low=0,high=R3),R1
+#Library __checkNullRef(s),Rdummy
+Move s,R1
+VirtualCall R1.3(),R1

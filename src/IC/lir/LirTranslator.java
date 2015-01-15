@@ -11,6 +11,7 @@ import IC.Types.ClassTypeEntry;
 import IC.Types.PrimitiveTypeEnum;
 import IC.Types.TypesTable;
 import IC.lir.Instructions.*;
+import microLIR.instructions.Reg;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -20,8 +21,6 @@ import java.util.List;
 public class LirTranslator implements PropagatingVisitor<List<String>,List<String>> {
 
 	public static final String VAL_OPTMZ = "";
-
-	private String currentClass;
 	private Label currentWhileLabel;
 	private Label currentEndWhileLabel;
     List<String> mainBlock;
@@ -54,7 +53,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 		CompileTimeData.addDispatchTable(classDT);
 
 		List<String> classInstructions = new LinkedList<String>();
-		currentClass = icClass.getName();
+		String currentClass = icClass.getName();
 		for (Method method : icClass.getMethods()) {
 			List<String> methodInstructions = new LinkedList<String>();
 			Label methodLabel;
@@ -263,9 +262,17 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 		List<String> conditionRegisters = new LinkedList<String>(); //add hack?
 		List<String> conditionTR = condition.accept(this, conditionRegisters);
 		ifStatementBlock.addAll(conditionTR);
-		BinaryInstruction checkCondition = new BinaryInstruction(LirBinaryOps.COMPARE, "0", conditionRegisters.get(0));
+		String conditionRegister = conditionRegisters.get(0);
+		String auxReg;
+		if (CompileTimeData.isRegName(conditionRegister)) {
+			auxReg = conditionRegister;
+		}
+		else {
+			auxReg = RegisterFactory.allocateRegister();
+		}
+		BinaryInstruction checkCondition = new BinaryInstruction(LirBinaryOps.COMPARE, "0", auxReg);
 		ifStatementBlock.add(checkCondition.toString());
-		RegisterFactory.freeRegister(conditionRegisters.get(0));
+		RegisterFactory.freeRegister(auxReg);
 
 		Label endLabel = new Label("_end_if_label_" + ifStatement.getLine());
 		Statement operation = ifStatement.getOperation();
@@ -308,7 +315,15 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 		List<String> conditionTR = condition.accept(this, conditionRegisters);
 		whileStatementBlock.addAll(conditionTR);
 
-		BinaryInstruction checkCondition = new BinaryInstruction(LirBinaryOps.COMPARE, "0", conditionRegisters.get(0));
+		String conditionRegister = conditionRegisters.get(0);
+		String auxReg;
+		if (CompileTimeData.isRegName(conditionRegister)) {
+			auxReg = conditionRegister;
+		}
+		else {
+			auxReg = RegisterFactory.allocateRegister();
+		}
+		BinaryInstruction checkCondition = new BinaryInstruction(LirBinaryOps.COMPARE, "0", auxReg);
 		whileStatementBlock.add(checkCondition.toString());
 		UnaryInstruction falseCondition = new UnaryInstruction(LirUnaryOps.JUMPTRUE, currentEndWhileLabel);
 		whileStatementBlock.add(falseCondition.toString());
@@ -318,7 +333,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 		UnaryInstruction startOver = new UnaryInstruction(LirUnaryOps.JUMP, currentWhileLabel);
 		whileStatementBlock.add(startOver.toString());
 		whileStatementBlock.add(currentEndWhileLabel.toString());
-		RegisterFactory.freeRegister(conditionRegisters.get(0));
+		RegisterFactory.freeRegister(auxReg);
 		return whileStatementBlock;
 	}
 
@@ -471,8 +486,8 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 		List<String> arrayLirInstructions = arrayExpr.accept(this, arrayRegs);
 		arrayLocationLirLineList.addAll(arrayLirInstructions);
 		String arrayOp = arrayRegs.get(0);
-        BinaryInstruction checkNullRef = new BinaryInstruction(LirBinaryOps.LIBRARY, "__checkNullRef(" + arrayOp + ")", "Rdummy");
-        arrayLocationLirLineList.add(checkNullRef.toString());
+		BinaryInstruction checkNullRef = new BinaryInstruction(LirBinaryOps.LIBRARY, "__checkNullRef(" + arrayOp + ")", "Rdummy");
+		arrayLocationLirLineList.add(checkNullRef.toString());
 
 		List<String> indexRegs = new ArrayList<String>();
 		indexRegs.add(VAL_OPTMZ);
@@ -480,25 +495,36 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 		List<String> indexLirInstructions = indexExpr.accept(this, indexRegs);
 		arrayLocationLirLineList.addAll(indexLirInstructions);
 		String indexOp = indexRegs.get(0);
-        BinaryInstruction checkArrayAccess = new BinaryInstruction(LirBinaryOps.LIBRARY, "__checkArrayAccess(" + arrayOp + "," + indexOp + ")", "Rdummy");
-        arrayLocationLirLineList.add(checkArrayAccess.toString());
+		BinaryInstruction checkArrayAccess = new BinaryInstruction(LirBinaryOps.LIBRARY, "__checkArrayAccess(" + arrayOp + "," + indexOp + ")", "Rdummy");
+		arrayLocationLirLineList.add(checkArrayAccess.toString());
 
-		if (!target.isEmpty() && target.get(0).equals(VAL_OPTMZ))
-		{
+		if (!target.isEmpty() && target.get(0).equals(VAL_OPTMZ)) {
+			String targetReg, auxReg;
 			target.remove(0);
-			String targetReg;
-			if (CompileTimeData.isRegName(indexOp)) {
-				targetReg = indexOp;
+			if (CompileTimeData.isRegName(arrayOp)) {
+				targetReg = auxReg = arrayOp;
+			} else {
+				auxReg = RegisterFactory.allocateRegister();
+				BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, arrayOp, auxReg);
+				arrayLocationLirLineList.add(mem2reg.toString());
+				//targetReg = RegisterFactory.allocateRegister();
+				if (CompileTimeData.isRegName(indexOp)) {
+					targetReg = indexOp;
+				} else {
+					targetReg = auxReg;
+				}
 			}
-			else {
-				targetReg = RegisterFactory.allocateRegister();
-			}
-			BinaryInstruction optmz = new BinaryInstruction(LirBinaryOps.MOVEARRAY, arrayOp + "[" + indexOp + "]", targetReg);
+			BinaryInstruction optmz = new BinaryInstruction(LirBinaryOps.MOVEARRAY, auxReg + "[" + indexOp + "]", targetReg);
 			arrayLocationLirLineList.add(optmz.toString());
 			target.add(targetReg);
+			if (CompileTimeData.isRegName(arrayOp) && !arrayOp.equals(targetReg)) {
+				RegisterFactory.freeRegister(arrayOp);
+			}
+			if (CompileTimeData.isRegName(indexOp) && !indexOp.equals(targetReg)) {
+				RegisterFactory.freeRegister(indexOp);
+			}
 		}
-		else
-		{
+		else {
 			target.add(arrayOp);
 			target.add(indexOp);
 		}
@@ -642,7 +668,6 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 		List<String> argumentTR;
 		List<String> registersToFree = new LinkedList<String>();
 		BinaryInstruction callInstruction;
-		String targetRegister;
 
 		String declatingClass = CompileTimeData.getClassLayout(className).getDeclaringMap().get(methodName);
 		SymbolTable methodSymbolTable = SymbolTable.getTopTable().getSymbolByID(declatingClass).getSymTableRef().getSymbolByID(methodName).getSymTableRef();
@@ -918,6 +943,8 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 				binaryOpLirLineList.add(inst.toString());
 				target.add(leftOp);
 			}
+			if (CompileTimeData.isRegName(rightOp))
+				RegisterFactory.freeRegister(rightOp);
 			break;
 		case MOD:
 			if (CompileTimeData.isImmediate(rightOp) && CompileTimeData.isImmediate(leftOp))
@@ -938,6 +965,8 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 				binaryOpLirLineList.add(inst.toString());
 				target.add(leftOp);
 			}
+			if (CompileTimeData.isRegName(rightOp))
+				RegisterFactory.freeRegister(rightOp);
 			break;
 		case MULTIPLY:
 			if (CompileTimeData.isImmediate(rightOp) && CompileTimeData.isImmediate(leftOp))
@@ -958,6 +987,8 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 				binaryOpLirLineList.add(inst.toString());
 				target.add(leftOp);
 			}
+			if (CompileTimeData.isRegName(rightOp))
+				RegisterFactory.freeRegister(rightOp);
 			break;
 		case MINUS:
 			if (CompileTimeData.isImmediate(rightOp) && CompileTimeData.isImmediate(leftOp))
@@ -978,6 +1009,8 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 				binaryOpLirLineList.add(inst.toString());
 				target.add(leftOp);
 			}
+			if (CompileTimeData.isRegName(rightOp))
+				RegisterFactory.freeRegister(rightOp);
 			break;
 		case PLUS:
 			if (CompileTimeData.isImmediate(rightOp) && CompileTimeData.isImmediate(leftOp))
@@ -1017,15 +1050,14 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 					inst = new BinaryInstruction(LirBinaryOps.ADD, rightOp, leftOp);
 					binaryOpLirLineList.add(inst.toString());
 					target.add(leftOp);
+					if (CompileTimeData.isRegName(rightOp))
+						RegisterFactory.freeRegister(rightOp);
 				}
 			}
 			break;
 		default:
 			break;
 		}
-		
-		if (CompileTimeData.isRegName(rightOp))
-			RegisterFactory.freeRegister(rightOp);
 		return binaryOpLirLineList;
 	}
 

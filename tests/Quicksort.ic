@@ -66,14 +66,16 @@ class Quicksort {
     }
 
     static void main(string[] args) {
+	string[] args2;
+	args2[0] = "hi";
     int n;
 
-    if (args.length != 1) {
+    if (args2.length != 1) {
         Library.println("Unspecified array length");
         Library.exit(1);
     }
 
-    n = Library.stoi(args[0],0);
+    n = Library.stoi(args2[0],0);
     if (n<=0) {
         Library.println("Invalid array length");
         Library.exit(1);
