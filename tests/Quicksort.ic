@@ -48,7 +48,7 @@ class Quicksort {
     void initArray() {
     int i = 0;
     while(i < a.length) {
-        a[i] =  Library.random(a.length*2);
+        a[i] =  3;
         i = i+1;
     }
     }
@@ -75,11 +75,12 @@ class Quicksort {
         Library.exit(1);
     }
 
-    n = Library.stoi(args2[0],0);
-    if (n<=0) {
-        Library.println("Invalid array length");
-        Library.exit(1);
-    }
+  //  n = Library.stoi(args2[0],0);
+    //if (n<=0) {
+      //  Library.println("Invalid array length");
+       // Library.exit(1);
+   // }
+   n=1;
     Quicksort s = new Quicksort();
     s.a = new int[n];
 

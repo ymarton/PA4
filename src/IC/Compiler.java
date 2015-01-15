@@ -16,8 +16,7 @@ import IC.Symbols.SymbolTable;
 import IC.Symbols.SymbolTableBuilder;
 import IC.lir.LirTranslator;
 
-import java.io.FileNotFoundException;
-import java.io.FileReader;
+import java.io.*;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -79,15 +78,28 @@ public class Compiler {
 			System.out.println();
 			LirTranslator lirTranslator = new LirTranslator();
 			List<String> lirProgram = rootNode.accept(lirTranslator, null);
-			for (String lirLine : lirProgram) {
-				System.out.print(lirLine);
+
+			int i = programFilePath.length()-1;
+			while (i >= 0 && ((programFilePath.charAt(i) == '\\') || (programFilePath.charAt(i) == '/'))) {
+				i--;
 			}
+			String icFileName = programFilePath.substring(i);
+			if (getString(args, "-print-lir") != null)
+				makeLirFile(lirProgram, icFileName);
 		}
 		catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} catch (Exception e) {
 			System.out.println(e.getMessage());
 		}
+	}
+
+	private static void makeLirFile(List<String> lirProgram, String icFileName) throws Exception {
+		PrintWriter writer = new PrintWriter(icFileName + ".lir", "UTF-8");
+		for (String line : lirProgram) {
+			writer.print(line);
+		}
+		writer.close();
 	}
 
 	/**
