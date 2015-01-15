@@ -1,6 +1,6 @@
 class A {
-  static void main(string[] args) {
-    f();
-  }
-  void f(){}
+	static void main(string[] args) {
+		int y=1;
+		int x = 5/y;
+	}
 }
