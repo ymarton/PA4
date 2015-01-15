@@ -469,43 +469,46 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 
 		if (!location.isExternal() && isNotField) {
 			if (!target.isEmpty() && target.get(0).equals(VAL_OPTMZ))
-				target.remove(0);
-			
-			// is local memory initialized for this scope?! VAL_OPTMZ indicates that it's needed for it's val (not assigned into)
-			if (CompileTimeData.isMemory(location.getName()))
 			{
-				SymbolTable currScope = location.getEnclosingScope();
-				String currentScopeGUID;
-				boolean isInit = false;
-				while ((currScope != null))
+				if (CompileTimeData.isMemory(location.getName()))
 				{
-					currentScopeGUID = currScope.getScopeGUID();
-					HashSet<String> scopeAlreadyInit = localVarsInit.get(currentScopeGUID);
-					if (scopeAlreadyInit != null)
+					SymbolTable currScope = location.getEnclosingScope();
+					String currentScopeGUID;
+					boolean isInit = false;
+					while ((currScope != null))
 					{
-						if (scopeAlreadyInit.contains(location.getName()))
+						currentScopeGUID = currScope.getScopeGUID();
+						HashSet<String> scopeAlreadyInit = localVarsInit.get(currentScopeGUID);
+						if (scopeAlreadyInit != null)
 						{
-							isInit = true;
+							if (scopeAlreadyInit.contains(location.getName()))
+							{
+								isInit = true;
+								break;
+							}
+						}
+						// this is the declaring scope, so it have to initialized here (or before) - but thats not the case - so we're done
+						Symbol symbol = currScope.getSymbolByID(id);
+						if (symbol != null)
+						{
+							if (symbol.getKind() == Kind.FORMAL_PARAM)
+							{
+								isInit = true;
+							}
 							break;
 						}
-					}
-					// this is the declaring scope, so it have to initialized here (or before) - but thats not the case - so we're done
-					Symbol symbol = currScope.getSymbolByID(id);
-					if (symbol != null)
-					{
-						if (symbol.getKind() == Kind.FORMAL_PARAM)
-						{
-							isInit = true;
-						}
-						break;
-					}
 
-					currScope = currScope.getParentTable();
+						currScope = currScope.getParentTable();
+					}
+					
+					if (!isInit)
+						throw new SemanticError("Usage of uninitialized local variable", location.getLine());
 				}
-				
-				if (!isInit)
-					throw new SemanticError("Usage of uninitialized local variable", location.getLine());
+				target.remove(0);
 			}
+			
+			// is local memory initialized for this scope?! VAL_OPTMZ indicates that it's needed for it's val (not assigned into)
+			
 			target.add(location.getName());
 		}
 		else {
