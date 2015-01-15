@@ -3,5 +3,14 @@ class A {
     int x;
 	x=3;
   }
+ 
+	void f(){s="blah";}
+	int x;
+	string s;
 }
 
+class B extends A{
+	int z;
+	int y;
+	
+	}

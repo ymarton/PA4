@@ -13,14 +13,7 @@ import IC.Types.PrimitiveTypeEnum;
 import IC.Types.TypesTable;
 import IC.lir.Instructions.*;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 public class LirTranslator implements PropagatingVisitor<List<String>,List<String>> {
 
@@ -30,6 +23,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 	private Label currentWhileLabel;
 	private Label currentEndWhileLabel;
     List<String> mainBlock;
+    List<String> fieldsAndOffsetsBlock = new LinkedList<String>();
 
 	@Override
 	public List<String> visit(Program program, List<String> target) throws Exception {
@@ -42,7 +36,10 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 		}
         instructionList.addAll(mainBlock);
 		instructionList.add(0, new BlankLine().toString());
+		instructionList.addAll(0, fieldsAndOffsetsBlock);
+		instructionList.add(0, new BlankLine().toString());
 		instructionList.addAll(0, CompileTimeData.getDispatchTables());
+		instructionList.add(0, new BlankLine().toString());
 		instructionList.addAll(0, CompileTimeData.getStringLiterals());
 		return instructionList;
 	}
@@ -57,6 +54,14 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 		ClassLayout classLayout = CompileTimeData.getClassLayout(className);
 		DispatchTable classDT = new DispatchTable(className, classLayout);
 		CompileTimeData.addDispatchTable(classDT);
+
+		Comment classDec = new Comment("Class " + className + " field offsets:");
+		fieldsAndOffsetsBlock.add(classDec.toString());
+		Map<String,Integer> fieldToOffset = classLayout.getFieldsMap();
+		for (String field : fieldToOffset.keySet()) {
+			Comment fieldAndOffset = new Comment(fieldToOffset.get(field) + " - " + field);
+			fieldsAndOffsetsBlock.add(fieldAndOffset.toString());
+		}
 
 		List<String> classInstructions = new LinkedList<String>();
 		String currentClass = icClass.getName();
