@@ -1,0 +1,18 @@
+class A {
+	static void main() {
+		A a = new B();
+		boolean b = false;
+		a.f(3,b);
+		int x= A.g(8-5);
+		Library.print(x);
+	}
+	static int g(int x) {
+		return x*2;
+	}
+}
+
+class b extends A {
+	void f(int x, boolean b) {
+		Library.print(x>0 && !b);
+	}
+}

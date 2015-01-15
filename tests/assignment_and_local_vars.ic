@@ -1,0 +1,13 @@
+class A {
+	static void main() {
+		int x=5;
+		Library.print(x);
+		x=9;
+		Library.print(x);
+		string s; 
+		s = "hello";
+		Library.print(s);
+		boolean b = false;
+		Library.print(b);
+	}
+}

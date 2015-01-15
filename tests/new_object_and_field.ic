@@ -1,0 +1,12 @@
+class A {
+	int x;
+	static void main() {
+		A a = new A();
+		a.x = 7;
+		Library.print(a.x);
+		boolean b = a.x > 3;
+		Library.print(b);
+		int y = a.x;
+		Library.print(y);
+	}
+}

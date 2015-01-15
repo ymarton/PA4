@@ -1,0 +1,13 @@
+class A {
+	static void main() {
+		boolean b = false && false;
+		Library.print(b);
+		boolean c = b || !b || true;
+		Library.print(c);
+		c = 3 != 1;
+		Library.print(c);
+		int x = 4;
+		c = 12 < x;
+		Library.print(c);
+	}
+}

@@ -1,0 +1,14 @@
+class A {
+	static void main() {
+		int[] a = new int[3];
+		a[2] = 9;
+		Library.print(a[2]);
+		int y = a[2];
+		Library.print(y);
+		int l = a.length;
+		Library.print(l);
+		a[3] = 0;
+		a[2] = a[3];
+		Library.print(a[2]);
+	}
+}

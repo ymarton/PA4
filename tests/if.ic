@@ -1,0 +1,17 @@
+class A {
+	static void main() {
+		boolean b = true;
+		int x = 3;
+		if (b || x >= 0) {
+			Library.print("yes");
+		}
+		else {
+			Library.print("no");
+		}
+		
+		if (false)
+			Library.print("yes");
+		else	
+			Library.print("no);
+	}
+}

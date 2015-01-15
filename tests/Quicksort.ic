@@ -16,25 +16,26 @@ class Quicksort {
     int[] a;
 
     int partition(int low, int high) {
-    int pivot = a[low];
-    int i = low;
-    int j = high;
-    int tmp;
+		a = new int[5];
+		int pivot = a[low];
+		int i = low;
+		int j = high;
+		int tmp;
 
-    while (true) {
-        while (a[i] < pivot) i = i+1;
-        while (a[j] > pivot) j = j-1;
+		while (true) {
+			while (a[i] < pivot) i = i+1;
+			while (a[j] > pivot) j = j-1;
 
-        if (i >= j) break;
+			if (i >= j) break;
 
-        tmp = a[i];
-        a[i] = a[j];
-        a[j] = tmp;
-        i = i+1;
-        j = j-1;
-    }
+			tmp = a[i];
+			a[i] = a[j];
+			a[j] = tmp;
+			i = i+1;
+			j = j-1;
+		}
 
-    return j;
+		return j;
     }
 
     void quicksort(int low, int high) {

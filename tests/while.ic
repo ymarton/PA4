@@ -1,0 +1,10 @@
+class A {
+	static void main() {
+		int i = 10;
+		while (i > 0) {
+			if (i % 2 == 0) continue;
+			if (i==3) break;
+			Library.print(i);
+		}
+	}
+}

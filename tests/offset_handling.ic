@@ -1,0 +1,17 @@
+class A {
+	int x;
+	static void main() {
+		A a = new B();
+		a.flag = true;
+		Library.print(a.flag);
+		a.g();
+	}
+	void f(){}
+}
+
+class b extends A {
+	boolean flag;
+	void g() {
+		Library.print(1);
+	}
+}
