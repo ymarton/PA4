@@ -251,6 +251,11 @@ public class ScopeChecker implements ThrowingVisitor {
 
 	@Override
 	public Object visit(VirtualCall call) throws Exception{
+		SemanticError scopeError = new SemanticError("Virtual func. can't be invoked inside static methods", call.getLine());
+
+		if (isStatic)
+			throw scopeError;
+		
 		SymbolTable currentScope = call.getEnclosingScope();
 		if (call.isExternal())
 		{
