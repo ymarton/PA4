@@ -805,10 +805,17 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 					binaryOpLirLineList.add(getMem.toString());
 					inst = new BinaryInstruction(LirBinaryOps.DIV, reg, temp);
 					binaryOpLirLineList.add(inst.toString());
-					BinaryInstruction optmz = new BinaryInstruction(LirBinaryOps.MOVE, temp, reg);
-					binaryOpLirLineList.add(optmz.toString());
-					RegisterFactory.freeRegister(temp);
-					target.add(reg);
+					if (CompileTimeData.isRegName(reg))
+					{
+						BinaryInstruction optmz = new BinaryInstruction(LirBinaryOps.MOVE, temp, reg);
+						binaryOpLirLineList.add(optmz.toString());
+						RegisterFactory.freeRegister(temp);
+						target.add(reg);
+					}
+					else
+					{
+						target.add(temp);
+					}
 					break;
 				case MINUS:
 					String temp2 = RegisterFactory.allocateRegister();
@@ -816,10 +823,17 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 					binaryOpLirLineList.add(getMem2.toString());
 					inst = new BinaryInstruction(LirBinaryOps.SUB, reg, temp2);
 					binaryOpLirLineList.add(inst.toString());
-					BinaryInstruction optmz2 = new BinaryInstruction(LirBinaryOps.MOVE, temp2, reg);
-					binaryOpLirLineList.add(optmz2.toString());
-					RegisterFactory.freeRegister(temp2);
-					target.add(reg);
+					if (CompileTimeData.isRegName(reg))
+					{
+						BinaryInstruction optmz2 = new BinaryInstruction(LirBinaryOps.MOVE, temp2, reg);
+						binaryOpLirLineList.add(optmz2.toString());
+						RegisterFactory.freeRegister(temp2);
+						target.add(reg);
+					}
+					else
+					{
+						target.add(temp2);
+					}
 					break;
 				case MOD:
 					String temp3 = RegisterFactory.allocateRegister();
@@ -827,17 +841,38 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 					binaryOpLirLineList.add(getMem3.toString());
 					inst = new BinaryInstruction(LirBinaryOps.MOD, reg, temp3);
 					binaryOpLirLineList.add(inst.toString());
-					BinaryInstruction optmz3 = new BinaryInstruction(LirBinaryOps.MOVE, temp3, reg);
-					binaryOpLirLineList.add(optmz3.toString());
-					RegisterFactory.freeRegister(temp3);
-					target.add(reg);
+					if (CompileTimeData.isRegName(reg))
+					{
+						BinaryInstruction optmz3 = new BinaryInstruction(LirBinaryOps.MOVE, temp3, reg);
+						binaryOpLirLineList.add(optmz3.toString());
+						RegisterFactory.freeRegister(temp3);
+						target.add(reg);
+					}
+					else
+					{
+						target.add(temp3);
+					}
 					break;
 				case MULTIPLY:
+					if (!CompileTimeData.isRegName(reg))
+					{
+						String temp4 = RegisterFactory.allocateRegister();
+						BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, reg, temp4);
+						binaryOpLirLineList.add(mem2reg.toString());
+						reg = temp4;
+					}
 					inst = new BinaryInstruction(LirBinaryOps.MUL, leftOp, reg);
 					binaryOpLirLineList.add(inst.toString());
 					target.add(reg);
 					break;
 				case PLUS:
+					if (!CompileTimeData.isRegName(reg))
+					{
+						String temp5 = RegisterFactory.allocateRegister();
+						BinaryInstruction mem2reg = new BinaryInstruction(LirBinaryOps.MOVE, reg, temp5);
+						binaryOpLirLineList.add(mem2reg.toString());
+						reg = temp5;
+					}
 					inst = new BinaryInstruction(LirBinaryOps.ADD, leftOp, reg);
 					binaryOpLirLineList.add(inst.toString());
 					target.add(reg);
