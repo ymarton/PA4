@@ -4,6 +4,7 @@ import IC.AST.*;
 import IC.AST.Return;
 import IC.AST.StaticCall;
 import IC.AST.VirtualCall;
+import IC.Semantic.SemanticError;
 import IC.Symbols.Kind;
 import IC.Symbols.Symbol;
 import IC.Symbols.SymbolTable;
@@ -11,16 +12,20 @@ import IC.Types.ClassTypeEntry;
 import IC.Types.PrimitiveTypeEnum;
 import IC.Types.TypesTable;
 import IC.lir.Instructions.*;
-import com.sun.prism.RectShadowGraphics;
-import microLIR.instructions.Reg;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 
 public class LirTranslator implements PropagatingVisitor<List<String>,List<String>> {
 
+	private static final HashMap<String, HashSet<String>> localVarsInit = new LinkedHashMap<String, HashSet<String>>();
+	
 	public static final String VAL_OPTMZ = "";
 	private Label currentWhileLabel;
 	private Label currentEndWhileLabel;
@@ -211,6 +216,19 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 					assignmentLirLineList.add(assignInst.toString());
 					RegisterFactory.freeRegister(tempReg);
 				}
+				
+				// the local var is initialized!
+				String scopeGUID = location.getEnclosingScope().getScopeGUID();
+				HashSet<String> scopeAlreadyInit;
+				if (localVarsInit.containsKey(scopeGUID))
+					scopeAlreadyInit = localVarsInit.get(scopeGUID);
+				else
+				{
+					scopeAlreadyInit = new LinkedHashSet<String>();
+					localVarsInit.put(scopeGUID, scopeAlreadyInit);
+				}
+				scopeAlreadyInit.add(locationOp);
+				
 			}
 			else { //location = exp.var
 				locationOp = locationRegs.get(0) + "." + locationRegs.get(1);
@@ -408,6 +426,18 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 				RegisterFactory.freeRegister(tempRegister);
 			}
 			localVariableBlock.add(initializeVar.toString());
+			
+			// the local var is initialized!
+			String scopeGUID = localVariable.getEnclosingScope().getScopeGUID();
+			HashSet<String> scopeAlreadyInit;
+			if (localVarsInit.containsKey(scopeGUID))
+				scopeAlreadyInit = localVarsInit.get(scopeGUID);
+			else
+			{
+				scopeAlreadyInit = new LinkedHashSet<String>();
+				localVarsInit.put(scopeGUID, scopeAlreadyInit);
+			}
+			scopeAlreadyInit.add(localVariable.getName());
 		}
 		return localVariableBlock;
 	}
@@ -440,6 +470,35 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 		if (!location.isExternal() && isNotField) {
 			if (!target.isEmpty() && target.get(0).equals(VAL_OPTMZ))
 				target.remove(0);
+			
+			// is local memory initialized for this scope?! VAL_OPTMZ indicates that it's needed for it's val (not assigned into)
+			if (CompileTimeData.isMemory(location.getName()))
+			{
+				SymbolTable currScope = location.getEnclosingScope();
+				String currentScopeGUID;
+				boolean isInit = false;
+				while ((currScope != null))
+				{
+					currentScopeGUID = currScope.getScopeGUID();
+					HashSet<String> scopeAlreadyInit = localVarsInit.get(currentScopeGUID);
+					if (scopeAlreadyInit != null)
+					{
+						if (scopeAlreadyInit.contains(location.getName()))
+						{
+							isInit = true;
+							break;
+						}
+					}
+					// this is the declaring scope, so it have to initialized here (or before) - but thats not the case - so we're done
+					if (currScope.getSymbolByID(id) != null)
+						break;
+
+					currScope = currScope.getParentTable();
+				}
+				
+				if (!isInit)
+					throw new SemanticError("Usage of uninitialized local variable", location.getLine());
+			}
 			target.add(location.getName());
 		}
 		else {

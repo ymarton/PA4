@@ -3,6 +3,7 @@ package IC.Symbols;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import IC.Semantic.ClassNode;
 import IC.Semantic.ClassesGraph;
@@ -17,10 +18,16 @@ public class SymbolTable
 	private String id;
 	private SymbolTable parentSymbolTable;
 	private int increasingGUID;
-
+	private String scopeGUID;
+	
 	/**
 	 * set global pointer to the global table
 	 */
+	
+	public String getScopeGUID()
+	{
+		return this.scopeGUID;
+	}
 	public static void setTopTable(SymbolTable topTable)
 	{
 		SymbolTable.topTable = topTable;
@@ -75,6 +82,7 @@ public class SymbolTable
 		this.entries = new LinkedHashMap<String,Symbol>();
 		this.parentSymbolTable = null;
 		this.increasingGUID = 0;
+		this.scopeGUID = UUID.randomUUID().toString();
 	}
 
 	public void AddSymbol(Symbol symbol)
