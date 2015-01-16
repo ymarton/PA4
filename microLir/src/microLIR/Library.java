@@ -70,10 +70,27 @@ public class Library {
 		else if (name.equals("__exit")) {
 			exit(instr, env);
 		}
+		else if (name.equals("__checkNullRef")) {
+			checkNullRef(instr, env);
+		}
+		else if (name.equals("__checkArrayAccess")) {
+			checkArrayAccess(instr, env);
+		}
+		else if (name.equals("__checkSize")) {
+			checkSize(instr, env);
+		}
+		else if (name.equals("__checkZero")) {
+			checkZero(instr, env);
+		}
 		else {
 			throw new RuntimeException("Encountered unknown/unsupported library function " + instr);
 		}
 	}
+
+	private static void checkNullRef(LibraryCall instr, Environment env) {}
+	private static void checkArrayAccess(LibraryCall instr, Environment env) {}
+	private static void checkSize(LibraryCall instr, Environment env) {}
+	private static void checkZero(LibraryCall instr, Environment env) {}
 
 	private static void allocateObject(LibraryCall instr, Environment env) {
 		String name = instr.func.name;

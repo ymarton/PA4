@@ -1,12 +1,20 @@
 class A {
 	int x;
-	static void main() {
+	static void main(string[] args) {
 		A a = new A();
 		a.x = 7;
-		Library.print(a.x);
+		Library.print("a.x=");
+		Library.printi(a.x);
+		Library.println("");
+		
 		boolean b = a.x > 3;
-		Library.print(b);
+		Library.print("b=");
+		Library.printb(b);
+		Library.println("");
+		
 		int y = a.x;
-		Library.print(y);
+		Library.print("y=");
+		Library.printi(y);
+		Library.println("");
 	}
 }

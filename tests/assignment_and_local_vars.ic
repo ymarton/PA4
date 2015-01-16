@@ -1,13 +1,21 @@
 class A {
-	static void main() {
+	static void main(string[] args) {
 		int x=5;
-		Library.print(x);
+		Library.print("x=");
+		Library.printi(x);
+		Library.println("");
+		
 		x=9;
-		Library.print(x);
+		Library.print("x=");
+		Library.printi(x);
+		Library.println("");
+		
 		string s; 
 		s = "hello";
-		Library.print(s);
+		Library.println("s=" + s);
+		
 		boolean b = false;
-		Library.print(b);
+		Library.print("b=");
+		Library.printb(b);
 	}
 }

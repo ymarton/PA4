@@ -1,18 +1,21 @@
 class A {
-	static void main() {
-		A a = new B();
-		boolean b = false;
-		a.f(3,b);
-		int x= A.g(8-5);
-		Library.print(x);
+	static void main(string[] args) {
+		B b = new B();
+		boolean bool = false;
+		b.f(3,bool);
+		int x = A.g(8-5);
+		Library.print("x=");
+		Library.printi(x);
+		Library.println("");		
 	}
 	static int g(int x) {
 		return x*2;
 	}
 }
 
-class b extends A {
+class B extends A {
 	void f(int x, boolean b) {
-		Library.print(x>0 && !b);
+		Library.printb(x>0 && !b);
+		Library.println("");
 	}
 }

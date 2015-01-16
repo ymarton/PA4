@@ -1,10 +1,13 @@
 class A {
-	static void main() {
-		int i = 10;
+	static void main(string[] args) {
+		int i = 11;
 		while (i > 0) {
-			if (i % 2 == 0) continue;
-			if (i==3) break;
-			Library.print(i);
+			i = i - 1;
+			if (i % 2 == 1) continue;
+			Library.print("i=");
+			Library.printi(i);
+			Library.println("");
+			if (i==2) break;
 		}
 	}
 }

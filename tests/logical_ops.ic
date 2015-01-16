@@ -1,13 +1,24 @@
 class A {
-	static void main() {
-		boolean b = false && false;
-		Library.print(b);
-		boolean c = b || !b || true;
-		Library.print(c);
-		c = 3 != 1;
-		Library.print(c);
+	static void main(string[] args) {
+		boolean b = true && false;
+		Library.print("b=");
+		Library.printb(b);
+		Library.println("");
+		
+		boolean c = b || !b || false;
+		Library.print("c=");
+		Library.printb(c);
+		Library.println("");
+		
+		c = 3 != 3;
+		Library.print("c=");
+		Library.printb(c);
+		Library.println("");
+		
 		int x = 4;
-		c = 12 < x;
-		Library.print(c);
+		c = 12 < x+9;
+		Library.print("c=");
+		Library.printb(c);
+		Library.println("");
 	}
 }

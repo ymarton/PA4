@@ -1,14 +1,25 @@
 class A {
-	static void main() {
+	static void main(string[] args) {
 		int[] a = new int[3];
 		a[2] = 9;
-		Library.print(a[2]);
+		Library.print("a[2]=");
+		Library.printi(a[2]);
+		Library.println("");
+		
 		int y = a[2];
-		Library.print(y);
+		Library.print("y=");
+		Library.printi(y);
+		Library.println("");
+		
 		int l = a.length;
-		Library.print(l);
-		a[3] = 0;
-		a[2] = a[3];
-		Library.print(a[2]);
+		Library.print("l=");
+		Library.printi(l);
+		Library.println("");
+		
+		a[1] = 0;
+		a[2] = a[1];
+		Library.print("a[2]=");
+		Library.printi(a[2]);
+		Library.println("");
 	}
 }

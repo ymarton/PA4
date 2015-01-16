@@ -1,17 +1,25 @@
 class A {
 	int x;
-	static void main() {
-		A a = new B();
-		a.flag = true;
-		Library.print(a.flag);
-		a.g();
+	static void main(string[] args) {
+		B b = new B();
+		b.flag = true;
+		Library.print("b.flag=");
+		Library.printb(b.flag);
+		Library.println("");
+		
+		b.x = 1;
+		Library.print("b.x=");
+		Library.printi(b.x);
+		Library.println("");
+		
+		b.g();
 	}
 	void f(){}
 }
 
-class b extends A {
+class B extends A {
 	boolean flag;
 	void g() {
-		Library.print(1);
+		Library.printi(1);
 	}
 }

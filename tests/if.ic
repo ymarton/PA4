@@ -1,17 +1,17 @@
 class A {
-	static void main() {
+	static void main(string[] args) {
 		boolean b = true;
 		int x = 3;
 		if (b || x >= 0) {
-			Library.print("yes");
+			Library.println("if body");
 		}
 		else {
-			Library.print("no");
+			Library.print("else body");
 		}
 		
 		if (false)
-			Library.print("yes");
+			Library.print("if2 body");
 		else	
-			Library.print("no);
+			Library.print("else2 body");
 	}
 }
