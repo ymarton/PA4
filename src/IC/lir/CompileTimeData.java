@@ -8,8 +8,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import IC.lir.Instructions.DispatchTable;
-import IC.lir.Instructions.LirLine;
-import IC.lir.Instructions.stringLiteral;
 
 public class CompileTimeData {
 	
@@ -32,21 +30,6 @@ public class CompileTimeData {
 		try {
 			int regnum = Integer.parseInt(candidate);
 			if (regnum < 0)
-				return false;
-		} catch (Exception e) {
-			return false;
-		}
-		return true;
-	}
-	
-	public static boolean isStrLitName(String candidate)
-	{
-		if (!candidate.startsWith("str"))
-			return false;
-		candidate = candidate.replaceFirst("str", "");
-		try {
-			int regnum = Integer.parseInt(candidate);
-			if (regnum < 1)
 				return false;
 		} catch (Exception e) {
 			return false;

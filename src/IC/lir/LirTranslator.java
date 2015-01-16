@@ -316,7 +316,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 	public List<String> visit(If ifStatement, List<String> targetRegisters) throws Exception {
 		List<String> ifStatementBlock = new LinkedList<String>();
 		Expression condition = ifStatement.getCondition();
-		List<String> conditionRegisters = new LinkedList<String>(); //add hack?
+		List<String> conditionRegisters = new LinkedList<String>();
 		List<String> conditionTR = condition.accept(this, conditionRegisters);
 		ifStatementBlock.addAll(conditionTR);
 		String conditionResult = conditionRegisters.get(0);
@@ -372,7 +372,7 @@ public class LirTranslator implements PropagatingVisitor<List<String>,List<Strin
 		whileStatementBlock.add(currentWhileLabel.toString());
 
 		Expression condition = whileStatement.getCondition();
-		List<String> conditionRegisters = new LinkedList<String>(); //add hack?
+		List<String> conditionRegisters = new LinkedList<String>();
 		List<String> conditionTR = condition.accept(this, conditionRegisters);
 		whileStatementBlock.addAll(conditionTR);
 

@@ -43,10 +43,6 @@ public class ClassLayout {
         return fieldToOffset.get(fieldName);
     }
 
-    public int getMethodToOffsetSize() {
-        return methodToOffset.size();
-    }
-
     public int getFieldToOffsetSize() {
         return fieldToOffset.size();
     }
